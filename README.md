@@ -148,6 +148,8 @@ XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 uv run scripts/train.py pi0_fast_libero --exp
 
 The command will log training progress to the console and save checkpoints to the `checkpoints` directory. You can also monitor training progress on the Weights & Biases dashboard. For maximally using the GPU memory, set `XLA_PYTHON_CLIENT_MEM_FRACTION=0.9` before running training -- this enables JAX to use up to 90% of the GPU memory (vs. the default of 75%).
 
+**Note:** We provide functionality for *reloading* normalization statistics for state / action normalization from pre-training. This can be beneficial if you are fine-tuning to a new task on a robot that was part of our pre-training mixture. For more details on how to reload normalization statistics, see the [norm_stats.md](docs/norm_stats.md) file.
+
 ### 3. Spinning up a policy server and running inference
 
 Once training is complete, we can run inference by spinning up a policy server and then querying it from a Libero evaluation script. Launching a model server is easy (we use the checkpoint for iteration 20,000 for this example, modify as needed):
@@ -158,12 +160,16 @@ uv run scripts/serve_policy.py policy:checkpoint --policy.config=pi0_fast_libero
 
 This will spin up a server that listens on port 8000 and waits for observations to be sent to it. We can then run the Libero evaluation script to query the server. For instructions how to install Libero and run the evaluation script, see the [Libero README](examples/libero/README.md).
 
+If you want to embed a policy server call in your own robot runtime, we have a minimal example of how to do so in the [remote inference docs](docs/remote_inference.md).
+
+
 
 ### More Examples
 
 We provide more examples for how to fine-tune and run inference with our models on the ALOHA platform in the following READMEs:
 - [ALOHA Simulator](examples/aloha_sim)
 - [ALOHA Real](examples/aloha_real)
+- [UR5](examples/ur5)
 
 
 

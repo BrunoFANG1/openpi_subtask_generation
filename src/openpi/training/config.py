@@ -383,6 +383,17 @@ class TrainConfig:
 # Use `get_config` if you need to get a config by name in your code.
 _CONFIGS = [
     #
+    # Inference X2Robot configs.
+    #
+    TrainConfig(
+        name="x2robot",
+        model=pi0.Pi0Config(),
+        data=LeRobotAlohaDataConfig(
+            assets=AssetsConfig(asset_id="trossen"),
+        ),
+    ),
+
+    #
     # Inference Aloha configs.
     #
     TrainConfig(

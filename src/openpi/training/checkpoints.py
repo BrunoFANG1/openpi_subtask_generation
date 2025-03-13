@@ -48,8 +48,8 @@ def initialize_checkpoint_dir(
         ),
     )
 
-    # special case: the checkpoint directory exists and the user requests to resume training, but the training run did
-    # not get to the first checkpoint saved. in this case, we don't actually want the train script to try and restore a
+    # Special case: the checkpoint directory exists and the user requests to resume training, but the training run did
+    # not get to the first checkpoint saved. In this case, we don't actually want the train script to try and restore a
     # checkpoint, since it will fail.
     if resuming and tuple(mngr.all_steps()) in [(), (0,)]:
         logging.info("Checkpoint directory exists, but does not contain any checkpoints. Aborting resume.")

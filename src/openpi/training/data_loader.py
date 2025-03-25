@@ -89,7 +89,7 @@ def create_dataset(data_config: _config.DataConfig, model_config: _model.BaseMod
     if repo_id == "fake":
         return FakeDataset(model_config, num_samples=1024)
 
-    dataset_meta = lerobot_dataset.LeRobotDatasetMetadata(repo_id, local_files_only=data_config.local_files_only)
+    dataset_meta = lerobot_dataset.LeRobotDatasetMetadata(repo_id, local_files_only=True)
     dataset = lerobot_dataset.LeRobotDataset(
         data_config.repo_id,
         delta_timestamps={
@@ -216,7 +216,8 @@ class TorchDataLoader:
         if sharding is None:
             # Use data parallel sharding by default.
             sharding = jax.sharding.NamedSharding(
-                jax.sharding.Mesh(jax.devices(), ("B",)),
+                # jax.sharding.Mesh(jax.devices(), ("B",)),
+                jax.sharding.Mesh([jax.devices()[0]], ("B",)),
                 jax.sharding.PartitionSpec("B"),
             )
 

@@ -9,6 +9,11 @@ import numpy as np
 import tqdm
 import tyro
 
+import os
+os.environ["LEROBOT_HOME"] = "/x2robot/xinyuanfang/projects/.cache/lerobot"
+# os.environ["JAX_PLATFORMS"] = "gpu" 
+os.environ["JAX_VISIBLE_DEVICES"] = "0"  # Use only device 0
+
 import openpi.shared.normalize as normalize
 import openpi.training.config as _config
 import openpi.training.data_loader as _data_loader

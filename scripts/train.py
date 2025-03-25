@@ -1,3 +1,6 @@
+import os
+os.environ["LEROBOT_HOME"] = "/x2robot/xinyuanfang/projects/.cache/lerobot"
+
 import dataclasses
 import functools
 import logging

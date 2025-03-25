@@ -20,6 +20,7 @@ import openpi.models.tokenizer as _tokenizer
 import openpi.policies.aloha_policy as aloha_policy
 import openpi.policies.droid_policy as droid_policy
 import openpi.policies.libero_policy as libero_policy
+import openpi.policies.arx_policy as arx_policy
 import openpi.shared.download as _download
 import openpi.shared.normalize as _normalize
 import openpi.training.optimizer as _optimizer
@@ -195,6 +196,46 @@ class SimpleDataConfig(DataConfigFactory):
             use_quantile_norm=model_config.model_type == ModelType.PI0_FAST,
         )
 
+@dataclasses.dataclass(frozen=True)
+class LeRobotX2robotDataConfig(DataConfigFactory):
+    default_prompt: str | None = None
+
+    # Action keys that will be used to read the action sequence from the dataset.
+    action_sequence_keys: Sequence[str] = ("action",)
+
+    repack_transforms: tyro.conf.Suppress[_transforms.Group] = dataclasses.field(
+        default=_transforms.Group(
+            inputs=[
+                _transforms.RepackTransform(
+                    {
+                        'images': {
+                            "left_wrist_view": "left_wrist_view",
+                            "face_view": "face_view",
+                            "right_wrist_view": "right_wrist_view",
+                        },
+                        "state": "state",
+                        "actions": "actions",
+                    }
+                )
+            ]
+        )
+    )
+
+    @override
+    def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
+        data_transforms = _transforms.Group(
+            inputs=[arx_policy.ArxInputs(action_dim=model_config.action_dim, model_type=model_config.model_type)],
+            outputs=[arx_policy.ArxOutputs()],
+        )
+
+        model_transforms = ModelTransformFactory(default_prompt=self.default_prompt)(model_config)
+
+        return dataclasses.replace(
+            self.create_base_config(assets_dirs),
+            repack_transforms=self.repack_transforms,
+            data_transforms=data_transforms,
+            model_transforms=model_transforms,
+        )
 
 @dataclasses.dataclass(frozen=True)
 class LeRobotAlohaDataConfig(DataConfigFactory):
@@ -414,14 +455,24 @@ class TrainConfig:
 # Use `get_config` if you need to get a config by name in your code.
 _CONFIGS = [
     #
-    # Inference X2Robot configs.
+    # Finetune X2Robot configs.
     #
     TrainConfig(
-        name="x2robot",
+        name="x2robot_test",
         model=pi0.Pi0Config(),
-        data=LeRobotAlohaDataConfig(
-            assets=AssetsConfig(asset_id="trossen"),
+        batch_size=256,
+        num_workers=30,
+        data=LeRobotX2robotDataConfig(
+            repo_id="entangle_line_20250323",
+            base_config=DataConfig(
+            local_files_only=True,
+            ),
+            default_prompt="Do something for fun",
         ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_base/params"),
+        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
+        # Check the base TrainConfig class for a full list of available hyperparameters.
+        num_train_steps=30_000,
     ),
 
     #

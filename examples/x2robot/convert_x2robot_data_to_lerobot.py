@@ -21,51 +21,35 @@ import numpy as np
 from x2robot_dataset.common.datasets.video_utils import decode_video_torchvision
 from x2robot_dataset.common.data_preprocessing import process_action
 
-REPO_NAME = "entangle_line_20250323_norm"  # Name of the output dataset, also used for the Hugging Face Hub
+REPO_NAME = "office-sort-and-fold-clothes"  # Name of the output dataset, also used for the Hugging Face Hub
 RAW_DATASET_PATHS = [
-    # "/x2robot/zhengwei/factory10021/20250306-day-entangled-line-three-fork",
-    # "/x2robot/zhengwei/factory10022/20250306-day-entangled-line-three-fork-disturb",
-    # "/x2robot/zhengwei/factory10020/20250306-day-entangled-line-three-fork-disturb",
-    # "/x2robot/zhengwei/factory10023/20250306-night-entangled-line-three-fork-disturb",
-    # "/x2robot/zhengwei/factory10020/20250306-night-entangled-line-three-fork-disturb",
-    # "/x2robot/zhengwei/factory10021/20250307-day-entangled-line-three-fork-disturb",
-    # "/x2robot/zhengwei/factory10022/20250307-day-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10021/20250307-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10022/20250307-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10021/20250308-day-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10021/20250308-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10020/20250308-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10021/20250309-day-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10020/20250309-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10026/20250309-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10021/20250310-night-entangled-fork-three-fork-disturb",
-    "/x2robot/zhengwei/factory10020/20250310-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10021/20250310-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10020/20250310-day-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10020/20250311-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10026/20250311-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10021/20250311-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10021/20250311-day-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10019/20250311-day-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10021/20250311-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10026/20250311-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10020/20250311-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10021/20250312-day-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10023/20250312-day-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10026/20250312-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10020/20250228-day-entangled-line-three-fork-new-setting",
-    "/x2robot/zhengwei/factory10021/20250313-day-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10023/20250313-day-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10026/20250313-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10023/20250313-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10023/20250314-day-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10023/20250315-day-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10026/20250314-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10021/20250315-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10027/20250316-day-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10021/20250316-night-entangled-line-three-fork-disturb",
-    "/x2robot/zhengwei/factory10027/20250316-night-entangled-line-three-fork-disturb",
-]  # For simplicity we will combine multiple Libero datasets into one training dataset
+    '/x2robot/zhengwei/10007/20250325-night-fold-item-towel-3',
+    '/x2robot/zhengwei/10007/20250325-night-fold-item-towel-4',
+    '/x2robot/zhengwei/10007/20250326-day-fold-item-towel-2',
+    '/x2robot/zhengwei/10007/20250326-night-fold-item-towel-3',
+    '/x2robot/zhengwei/10007/20250326-night-fold-item-towel-4',
+    '/x2robot/zhengwei/10007/20250327-day-fold-item-towel-1',
+    '/x2robot/zhengwei/10007/20250327-day-fold-item-towel-2',
+    '/x2robot/zhengwei/10007/20250327-night-fold-item-towel-3',
+    '/x2robot/zhengwei/10007/20250327-night-fold-item-towel-4',
+    '/x2robot/zhengwei/10007/20250328-day-fold-item-towel-1',
+    '/x2robot/zhengwei/10007/20250328-day-fold-item-towel-2',
+    '/x2robot/zhengwei/10007/20250328-night-fold-item-towel-3',
+    '/x2robot/zhengwei/10007/20250328-night-fold-item-towel-4',
+    '/x2robot/zhengwei/10007/20250329-day-fold-item-towel-1',
+    '/x2robot/zhengwei/10007/20250329-day-fold-item-towel-2',
+    '/x2robot/zhengwei/10007/20250329-night-fold-item-towel-3',
+    '/x2robot/zhengwei/10007/20250329-night-fold-item-towel-4',
+    '/x2robot/zhengwei/10007/20250330-day-fold-item-towel',
+    '/x2robot/zhengwei/10007/20250330-day-fold-item-towel-2',
+    '/x2robot/zhengwei/10007/20250330-night-fold-item-towel-3',
+    '/x2robot/zhengwei/10007/20250331-day-fold-item-towel',
+    '/x2robot/zhengwei/10007/20250331-day-fold-item-towel-2',
+    '/x2robot/zhengwei/10007/20250401-day-pick_up-item-towel-1',
+    '/x2robot/zhengwei/10007/20250401-day-pick_up-item-towel-2',
+    '/x2robot/zhengwei/10007/20250401-day-fold-item-towel-2',
+    '/x2robot/zhengwei/10007/20250402-day-fold-item-towel-1',
+]
 
 FILE_CAME_MAPPING = {
     "face_view": "faceImg.mp4",
@@ -177,7 +161,7 @@ def main(data_dir: str, *, push_to_hub: bool = False):
             pose_dicts["follow_right_gripper"] = pose_dicts["follow_right_gripper"].reshape(-1, 1)
             pose_dicts["master_left_gripper"] = pose_dicts["master_left_gripper"].reshape(-1, 1)
             pose_dicts["master_right_gripper"] = pose_dicts["master_right_gripper"].reshape(-1, 1)
-            pred_poses = np.concatenate([pose_dicts[key] for key in ["master_left_ee_cartesian_pos", "master_left_ee_rotation", "master_left_gripper", "master_right_ee_cartesian_pos", "master_right_ee_rotation", "master_right_gripper"]], axis=1)
+            pred_poses = np.concatenate([pose_dicts[key] for key in ["follow_left_ee_cartesian_pos", "follow_left_ee_rotation", "follow_left_gripper", "follow_right_ee_cartesian_pos", "follow_right_ee_rotation", "follow_right_gripper"]], axis=1)
             real_poses = np.concatenate([pose_dicts[key] for key in ["follow_left_ee_cartesian_pos", "follow_left_ee_rotation", "follow_left_gripper", "follow_right_ee_cartesian_pos", "follow_right_ee_rotation", "follow_right_gripper"]], axis=1)
             # print(f"pred_poses: {pred_poses.shape}")
             # print(f"real_poses: {real_poses.shape}")
@@ -206,7 +190,7 @@ def main(data_dir: str, *, push_to_hub: bool = False):
                         # "task": 'do something fun', # temporary fix
                     }
                 )
-            dataset.save_episode(task=f'Clean up the table {episode_num}')
+            dataset.save_episode(task=f'Sort and fold clothes') ### TODO 记得改！！！
             episode_num += 1
             # assert False
             # if episode_num >= 5:

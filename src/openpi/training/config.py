@@ -460,14 +460,67 @@ _CONFIGS = [
     TrainConfig(
         name="x2robot_test",
         model=pi0.Pi0Config(),
-        batch_size=256,
-        num_workers=30,
+        batch_size=128,
+        num_workers=80,
         data=LeRobotX2robotDataConfig(
             repo_id="entangle_line_20250323",
             base_config=DataConfig(
             local_files_only=True,
             ),
             default_prompt="Do something for fun",
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_base/params"),
+        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
+        # Check the base TrainConfig class for a full list of available hyperparameters.
+        num_train_steps=30_000,
+    ),
+    TrainConfig(
+        name="pi0_x2robot_office_sort_and_fold_clothes",
+        model=pi0.Pi0Config(),
+        batch_size=128,
+        num_workers=80,
+        data=LeRobotX2robotDataConfig(
+            repo_id="office-sort-and-fold-clothes",
+            base_config=DataConfig(
+            local_files_only=True,
+            ),
+            default_prompt="Sort and fold towels",
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_base/params"),
+        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
+        # Check the base TrainConfig class for a full list of available hyperparameters.
+        num_train_steps=30_000,
+    ),
+
+    TrainConfig(
+        name="pi0_x2robot_sort_and_fold_clothes",
+        model=pi0.Pi0Config(),
+        batch_size=128,
+        num_workers=80,
+        data=LeRobotX2robotDataConfig(
+            repo_id="sort-and-fold-clothes",
+            base_config=DataConfig(
+            local_files_only=True,
+            ),
+            default_prompt="Sort and fold clothes",
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_base/params"),
+        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
+        # Check the base TrainConfig class for a full list of available hyperparameters.
+        num_train_steps=30_000,
+    ),
+
+    TrainConfig(
+        name="pi0_fast_x2robot_sort_and_fold_clothes",
+        model=pi0_fast.Pi0FASTConfig(),
+        batch_size=128,
+        num_workers=60,
+        data=LeRobotX2robotDataConfig(
+            repo_id="sort-and-fold-clothes",
+            base_config=DataConfig(
+            local_files_only=True,
+            ),
+            default_prompt="Sort and fold clothes",
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_base/params"),
         # Below you can define other hyperparameters like the learning rate, number of training steps, etc.

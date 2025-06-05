@@ -1,0 +1,93 @@
+name: spell_word
+# name: pick_waste_hist2s
+
+image_shape: [3, 480, 640]
+low_dim_obs_horizon: 1
+img_obs_horizon: 1
+action_horizon: 20
+action_history_length: 0
+image_history_length: 0
+is_binocular: False
+is_factory: False # 只x+0.15,z+0.2
+use_quaternion: False # 采用四元数来表示旋转
+relative_action: False # 采用相对位姿
+add_noise: False
+filter_angle_outliers: False # 过滤角度异常值会报错
+minmax_range_robot: arx_master_obs_follow
+use_gripper_cur: False
+use_joint_cur: False
+use_diversity_file: False
+
+dataset_path:
+- path: '/x2robot/zhengwei/10044/20250407-day-spell-word'
+- path: '/x2robot/zhengwei/10009/20250407-day-spell-word'
+- path: '/x2robot/zhengwei/10009/20250403-day-spell-word'
+- path: '/x2robot/zhengwei/10009/20250402-day-spell-word'
+- path: '/x2robot/zhengwei/10015/20250401-night-spell-word-car'
+- path: '/x2robot/zhengwei/10009/20250401-day-spell-word'
+- path: '/x2robot/zhengwei/10015/20250331-night-spell-word-car'
+- path: '/x2robot/zhengwei/10009/20250331-day-spell-word-car-2'
+- path: '/x2robot/zhengwei/10015/20250327-day-spell-word-car'
+# - path: '/x2robot/zhengwei/10015/20250321-night-spell-word-car-1'
+# - path: '/x2robot/zhengwei/10015/20250322-day-spell-word--1'
+# - path: '/x2robot/zhengwei/10009/20250423-day-spell-word'
+# - path: '/x2robot/zhengwei/10068/20250423-day-spell-word'
+# - path: '/x2robot/zhengwei/10015/20250422-day-spell-word-car'
+# - path: '/x2robot/zhengwei/10068/20250422-day-spell-word'
+# - path: '/x2robot/zhengwei/factory10024/20250422-day-spell-word'
+# - path: '/x2robot/zhengwei/10009/20250422-day-spell-word'
+# - path: '/x2robot/zhengwei/10065/20250421-day-spell-word-1' #### Checked
+# - path: '/x2robot/zhengwei/10009/20250421-day-spell-word-1'
+# - path: '/x2robot/zhengwei/factory10024/20250421-day-spell-word'
+# - path: '/x2robot/zhengwei/10068/20250421-day-spell-word--1'
+# - path: '/x2robot/zhengwei/10068/20250418-day-spell-word'
+# - path: '/x2robot/zhengwei/10009/20250418-day-spell-word'
+# - path: '/x2robot/zhengwei/10065/20250418-day-spell-word'
+# - path: '/x2robot/zhengwei/10015/20250417-day-spell-word-car'
+# - path: '/x2robot/zhengwei/10009/20250417-day-spell-word-1'
+# - path: '/x2robot/zhengwei/10068/20250417-day-spell-word'
+# - path: '/x2robot/zhengwei/10009/20250416-day-spell-word'
+# - path: '/x2robot/zhengwei/10068/20250416-day-spell-word'
+# - path: '/x2robot/zhengwei/10065/20250416-day-spell-word'
+# - path: '/x2robot/zhengwei/10044/20250415-day-spell-word'
+# - path: '/x2robot/zhengwei/10044/20250414-day-spell-word'
+# - path: '/x2robot/zhengwei/10044/20250411-day-spell-word'
+# - path: '/x2robot/zhengwei/10009/20250411-day-spell-word'
+# - path: '/x2robot/zhengwei/10009/20250410-day-spell-word'
+# - path: '/x2robot/zhengwei/10044/20250410-day-spell-word-2'
+# - path: '/x2robot/zhengwei/10044/20250409-day-spell-word'
+# - path: '/x2robot/zhengwei/10044/20250408-day-spell-word'
+# - path: '/x2robot/zhengwei/10007/20250407-day-spell-word-1'
+
+shape_meta: &shape_meta
+  obs:
+    face_view:
+      shape: ${task.image_shape}
+      horizon: ${task.img_obs_horizon}
+      type: rgb
+    left_wrist_view:
+      shape: ${task.image_shape}
+      horizon: ${task.img_obs_horizon}
+      type: rgb
+    right_wrist_view:
+      shape: ${task.image_shape}
+      horizon: ${task.img_obs_horizon}
+      type: rgb
+    agent_pos:
+      shape: [14] # 14 + 14
+      horizon: ${eval:'${task.low_dim_obs_horizon} + ${task.action_history_length}'}
+      type: low_dim
+  action:
+    shape: [14]
+    horizon: ${task.action_horizon}
+    type: low_dim
+
+dataset:
+  dataset_paths: ${task.dataset_path}
+  # seed: 42
+  is_bi_mode: True
+  repeat_num: 1
+  train_val_split: 0.99
+  # sample_ratio: [1.0, 1.0]
+  save_meta_data: True
+  force_overwrite: False

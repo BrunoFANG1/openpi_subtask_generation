@@ -171,7 +171,7 @@ def main(args: Args) -> None:
     sock.setblocking(True) #设置通信是阻塞式
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     ip = '10.60.251.101'
-    port = 10810
+    port = 10812
     sock.bind((ip, port))
     sock.listen(1)
     print(f"Server is listening on {ip}:{port}")
@@ -224,15 +224,17 @@ def main(args: Args) -> None:
                 'face_view': camera_front,
                 'right_wrist_view': camera_right,
             },
+            'prompt': '',
             'state': state,
         }
         time_preprocess = time.time()
 
         action_pred = policy.infer(obs)
-        action_pred = action_pred['actions']
+        action_pred = action_pred['actions'][0:30]
         print(action_pred)
+        # assert False
 
-        actions_factor = 20
+        actions_factor = 10
         # interpolates actions
         action_num = action_pred.shape[0]
         left_action_pred = interpolates_actions(actions=action_pred[:,:7], num_actions=action_pred.shape[0], target_num_actions=actions_factor*action_num, action_dim=7)

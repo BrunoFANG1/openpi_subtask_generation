@@ -9,6 +9,11 @@ import numpy as np
 import tqdm
 import tyro
 
+import os
+os.environ["LEROBOT_HOME"] = "/x2robot/brae/projects/.cache/lerobot"
+# os.environ["JAX_PLATFORMS"] = "gpu" 
+os.environ["JAX_VISIBLE_DEVICES"] = "0"  # Use only device 0
+
 import openpi.shared.normalize as normalize
 import openpi.training.config as _config
 import openpi.training.data_loader as _data_loader
@@ -51,7 +56,7 @@ def main(config_name: str, max_frames: int | None = None):
     data_loader = _data_loader.TorchDataLoader(
         dataset,
         local_batch_size=1,
-        num_workers=8,
+        num_workers=16,
         shuffle=shuffle,
         num_batches=num_frames,
     )

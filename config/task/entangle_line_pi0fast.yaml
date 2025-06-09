@@ -1,0 +1,292 @@
+name: entangle_line
+# name: pick_waste_hist2s
+
+image_shape: [3, 480, 640]
+low_dim_obs_horizon: 1
+img_obs_horizon: 1
+action_horizon: 20
+action_history_length: 0
+image_history_length: 0
+is_binocular: False
+is_factory: False # 只x+0.15,z+0.2
+use_quaternion: False # 采用四元数来表示旋转
+relative_action: False # 采用相对位姿
+add_noise: False
+filter_angle_outliers: False # 过滤角度异常值会报错
+minmax_range_robot: arx_master_obs_follow
+use_gripper_cur: False
+use_joint_cur: False
+use_diversity_file: False
+
+dataset_path:
+- path: /x2robot/zhengwei/10069/20250515-day-entangle-line-disturb-three_fork_abitrary_order_disturb
+- path: /x2robot/zhengwei/10070/20250515-day-entangle-line-disturb-three-fork-abitrary-order-disturb
+# - path: /x2robot/zhengwei/10071/20250515-day-entangle-line-disturb-three-fork-abitrary-order-disturb
+- path: /x2robot/zhengwei/10070/20250514-day-entangle-line-disturb-three-fork-abitrary-order-disturb-2
+- path: /x2robot/zhengwei/10071/20250514-day-entangle-line-disturb-three-fork-abitrary-order-disturb-1
+- path: /x2robot/zhengwei/10069/20250514-day-entangle-line-disturb-three_fork_abitrary_order_disturb
+- path: /x2robot/zhengwei/10070/20250514-day-entangle-line-disturb-three-fork-abitrary-order-disturb-1
+- path: /x2robot/zhengwei/10071/20250514-day-entangle-line-disturb-three-fork-abitrary-order-disturb
+- path: /x2robot/zhengwei/10069/20250513-day-entangle-line-disturb-three_fork_abitrary
+- path: /x2robot/zhengwei/10069/20250513-day-entangle-line-disturb-three_fork_abitrary_order_disturb
+- path: /x2robot/zhengwei/10063/20250513-day-entangle-line-disturb-three_fork_abitrary_order_disturb
+- path: /x2robot/zhengwei/10071/20250513-day-entangle-line-disturb-three-fork-abitrary-order-disturb-1
+- path: /x2robot/zhengwei/10070/20250513-day-entangle-line-disturb-three-fork-abitrary-order-disturb
+- path: /x2robot/zhengwei/10069/20250513-day-entangled-line-three_fork_abitrary_order_disturb-1
+- path: /x2robot/zhengwei/10071/20250513-day-entangled-line-three-fork-abitrary-order-disturb-1
+- path: /x2robot/zhengwei/10063/20250513-day-entangled-line-three_fork_abitrary_order_disturb
+- path: /x2robot/zhengwei/10069/20250513-day-entangled-line-three_fork_abitrary_order_disturb
+- path: /x2robot/zhengwei/10071/20250513-day-entangled-line-three-fork-abitrary-order-disturb
+- path: /x2robot/zhengwei/10070/20250513-day-entangled-line-three_fork_abitrary_order_disturb
+- path: /x2robot/zhengwei/10065/20250512-day-entangle-line-disturb-three_fork_abitrary_order_disturb-1
+- path: /x2robot/zhengwei/10071/20250512-day-entangle-line-disturb-three-fork-abitrary-order-disturb-1
+- path: /x2robot/zhengwei/10070/20250512-day-entangle-line-disturb-three-fork-abitrary-order-disturb-1
+- path: /x2robot/zhengwei/10070/20250509-day-entangle-line-disturb-three-fork-abitrary-order-disturb-1
+- path: /x2robot/zhengwei/10071/20250509-day-entangle-line-disturb-three-fork-abitrary-order-disturb-1
+# - path: /x2robot/zhengwei/10059/20250425-day-entangled-line-three-fork-random
+# - path: /x2robot/zhengwei/10058/20250425-day-entangled-line-three-fork-random
+# - path: /x2robot/zhengwei/factory10027/20250425-day-entangled-line-three-fork-random
+# - path: /x2robot/zhengwei/10059/20250424-day-entangled-line-three-fork-1
+# - path: /x2robot/zhengwei/10071/20250424-day-entangled-line-three-fork
+# - path: /x2robot/zhengwei/factory10021/20250424-day-entangled-line-three-fork
+# - path: /x2robot/zhengwei/10059/20250424-day-entangled-line-three-fork
+# - path: /x2robot/zhengwei/10067/20250424-day-entangled-line-three-fork-1
+# - path: /x2robot/zhengwei/factory10027/20250424-day-entangled-line-three-fork
+# - path: /x2robot/zhengwei/10058/20250423-day-entangled-line-three-fork
+# - path: /x2robot/zhengwei/10059/20250423-day-entangled-line-three-fork
+# - path: /x2robot/zhengwei/factory10027/20250423-day-entangled-line-three-fork
+# - path: /x2robot/zhengwei/10067/20250423-day-entangled-line-three-fork
+# - path: /x2robot/zhengwei/10066/20250423-day-entangled-line-three-fork
+# - path: /x2robot/zhengwei/factory10027/20250422-day-entangled-line-three-fork
+# - path: /x2robot/zhengwei/factory10022/20250422-day-entangled-line-three-fork-1
+# - path: /x2robot/zhengwei/10066/20250422-day-entangled-line-three-fork-1
+# - path: /x2robot/zhengwei/10067/20250422-day-entangled-line-three-fork
+# - path: /x2robot/zhengwei/10067/20250421-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10066/20250421-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10067/20250418-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10067/20250417-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10066/20250417-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10067/20250416-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10059/20250415-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10027/20250415-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10067/20250415-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10066/20250415-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10059/20250414-day-entangled-line-three-frok-disturb-random
+# - path: /x2robot/zhengwei/factory10027/20250414-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10067/20250414-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10066/20250414-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10067/20250411-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10059/20250411-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10027/20250411-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10066/20250411-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10059/20250410-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10027/20250410-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10067/20250410-day-entangled-line-three-fork-disturd-random
+# - path: /x2robot/zhengwei/10066/20250410-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10066/20250409-day-entangled-line-three-fork-disturb-random-1
+# - path: /x2robot/zhengwei/10059/20250409-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10027/20250409-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10067/20250409-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10021/20250409-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10021/20250408-day-entangled-line-three-fork-disturb-random-1
+# - path: /x2robot/zhengwei/10059/20250408-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10067/20250408-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10021/20250408-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10021/20250407-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10067/20250407-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10027/20250407-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10059/20250407-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10057/20250403-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10059/20250403-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10059/20250402-day-entangled-line-three-fork-dieturb-random
+# - path: /x2robot/zhengwei/10053/20250401-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10059/20250401-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10027/20250331-day-entangled-line-three-fork-disturb-random-2
+# - path: /x2robot/zhengwei/10057/20250331-day-entangled-line-three-fork-disturb-random-1
+# - path: /x2robot/zhengwei/10059/20250331-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10053/20250331-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10027/20250330-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10018/20250330-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10020/20250330-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10020/20250329-night-entangled-line-three-fork-disturb-random-1
+# - path: /x2robot/zhengwei/factory10018/20250329-night-entangled-line-three-fork-disturb-random-1
+# - path: /x2robot/zhengwei/factory10026/20250329-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10020/20250329-night-entangled-line-therr-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10020/20250329-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10019/20250328-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10018/20250328-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10022/20250328-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10022/20250327-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10018/20250327-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10053/20250327-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10055/20250327-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10018/20250326-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10018/20250326-night-entangled-line-three-fork-dissturb-random
+# - path: /x2robot/zhengwei/factory10022/20250326-night-entangled-line-three-fork-dissturb-random
+# - path: /x2robot/zhengwei/factory10022/20250326-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10057/20250326-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10057/20250325-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10018/20250325-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10027/20250325-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10054/20250325-night-entangled-line-three-fork-disturb-random-1
+# - path: /x2robot/zhengwei/factory10018/20250325-day-entangled-line-three-fork-disturb-random-1
+# - path: /x2robot/zhengwei/factory10022/20250325-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10057/20250325-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10054/20250325-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10018/20250325-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10018/20250324-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10022/20250324-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10027/20250324-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10018/20250324-day-entangled-line-three-fork-disturb-random-2
+# - path: /x2robot/zhengwei/10058/20250324-day-entangled-line-three-fork-disturd-random-2
+# - path: /x2robot/zhengwei/10058/20250324-day-entangled-line-three-fork-disturb-random-1
+# - path: /x2robot/zhengwei/10057/20250324-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10022/20250324-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10018/20250324-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10054/20250324-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10058/20250323-night-entangled-line-three-fork-disturb-random-2
+# - path: /x2robot/zhengwei/10054/20250323-day-entangled-line-three-fork-disturb-random-1
+# - path: /x2robot/zhengwei/factory10027/20250323-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10057/20250323-night-entangled-line
+# - path: /x2robot/zhengwei/10058/20250323-day-entangled-line-three-fork-disturb-random-1
+# - path: /x2robot/zhengwei/10057/20250323-day-entangled-line-three-fork-disturb-random-1
+# - path: /x2robot/zhengwei/10053/20250323-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10054/20250323-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10057/20250323-night-entangled-line-three-fork-disturb-random-5
+# - path: /x2robot/zhengwei/10055/20250322-night-entangled-line-three-fork-disturb-random-4
+# - path: /x2robot/zhengwei/10055/20250322-night-entangled-line-three-fork-disturb-random-3
+# - path: /x2robot/zhengwei/10058/20250322-night-entangled-line-1
+# - path: /x2robot/zhengwei/factory10027/20250322-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10053/20250322-day-entangled-line-three-fork-disturb-random-1
+# - path: /x2robot/zhengwei/10054/20250322-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10023/20250325-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10058/20250323-day-entangled-line-three-fork-disturb-random # 2w
+# - path: /x2robot/zhengwei/factory10024/20250322-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/10054/20250321-night-entangled-line
+# - path: /x2robot/zhengwei/10055/20250321-night-entangled-line-complex
+# - path: /x2robot/zhengwei/10053/20250321-night-entangled-line
+# - path: /x2robot/zhengwei/factory10027/20250321-night-entangled-line-three-fork-disturb-random-1
+# - path: /x2robot/zhengwei/10053/20250321-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10020/20250321-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10027/20250321-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10023/20250321-day-entangled-line-three-fork-disturb-random-1
+# - path: /x2robot/zhengwei/factory10022/20250321-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10022/20250319-day-entangled-line-three-fork-dis
+# - path: /x2robot/zhengwei/factory10023/20250321-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10027/20250321-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10021/20250321-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10022/20250321-day-entangled-line-three-fork-dis
+# - path: /x2robot/zhengwei/factory10027/20250320-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10026/20250320-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10021/20250320-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10022/20250320-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10027/20250320-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10026/20250320-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10022/20250320-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10021/20250320-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10026/20250319-night-entangled-line-three-fork-disturb-random-1
+# - path: /x2robot/zhengwei/factory10026/20250319-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10021/20250319-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10022/20250319-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10025/20250319-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10022/20250319-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10021/20250319-day-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10022/20250318-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10021/20250318-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10019/20250318-night-entangled-line-three-fork-disturb-random
+# - path: /x2robot/zhengwei/factory10023/20250318-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10026/20250318-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10025/20250318-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10025/20250318-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10026/20250317-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10025/20250317-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10027/20250316-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10021/20250316-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10027/20250316-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10026/20250316-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10021/20250315-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10026/20250315-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10023/20250315-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10026/20250314-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10023/20250314-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10023/20250313-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10021/20250313-night-entangled-line-three-fork-disturb # 2w7
+# - path: /x2robot/zhengwei/factory10026/20250313-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10020/20250313-day-entangled-line-three-fork-disturb-1
+# - path: /x2robot/zhengwei/factory10023/20250313-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10021/20250313-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10020/20250228-day-entangled-line-three-fork-new-setting
+# - path: /x2robot/zhengwei/factory10026/20250312-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10023/20250312-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10021/20250312-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10020/20250311-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10026/20250311-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10021/20250311-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10021/20250311-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10019/20250311-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10021/20250310-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10022/20250310-night-entangled-line-disturb
+# - path: /x2robot/zhengwei/factory10020/20250310-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10021/20250310-night-entangled-fork-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10023/20250310-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10025/20250310-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/10007/20250310-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10021/20250310-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10022/20250310-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10020/20250310-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10026/20250309-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10020/20250309-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10021/20250309-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10020/20250308-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10021/20250308-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10022/20250307-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10021/20250307-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10021/20250307-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10022/20250307-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10023/20250306-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10020/20250306-night-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10022/20250306-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10020/20250306-day-entangled-line-three-fork-disturb
+# - path: /x2robot/zhengwei/factory10023/20250306-day-entangled-line
+# - path: /x2robot/zhengwei/factory10021/20250306-day-entangled-line-three-fork
+# - path: /x2robot/zhengwei/factory10022/20250306-day-entangled-line
+# - path: /x2robot/zhengwei/factory10020/20250306-day-entangled-line-three-fork
+# - path: /x2robot/zhengwei/factory10021/20250305-night-entangled-line-three--line-three-fork
+# - path: /x2robot/zhengwei/factory10020/20250305-night-entangled-line-three-fork
+# - path: /x2robot/zhengwei/factory10023/20250305-night-entangled-line-three-fork
+# - path: /x2robot/zhengwei/factory10020/20250305-day-entangled-line-three-fork-1
+# - path: /x2robot/zhengwei/factory10022/20250305-day-entangled-line-three-fork # 3w5
+
+
+shape_meta: &shape_meta
+  obs:
+    face_view:
+      shape: ${task.image_shape}
+      horizon: ${task.img_obs_horizon}
+      type: rgb
+    left_wrist_view:
+      shape: ${task.image_shape}
+      horizon: ${task.img_obs_horizon}
+      type: rgb
+    right_wrist_view:
+      shape: ${task.image_shape}
+      horizon: ${task.img_obs_horizon}
+      type: rgb
+    agent_pos:
+      shape: [14] # 14 + 14
+      horizon: ${eval:'${task.low_dim_obs_horizon} + ${task.action_history_length}'}
+      type: low_dim
+  action:
+    shape: [14]
+    horizon: ${task.action_horizon}
+    type: low_dim
+
+dataset:
+  dataset_paths: ${task.dataset_path}
+  # seed: 42
+  is_bi_mode: True
+  repeat_num: 1
+  train_val_split: 0.99
+  # sample_ratio: [1.0, 1.0]
+  save_meta_data: True
+  force_overwrite: False

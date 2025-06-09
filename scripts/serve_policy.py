@@ -18,7 +18,7 @@ class EnvMode(enum.Enum):
     ALOHA_SIM = "aloha_sim"
     DROID = "droid"
     LIBERO = "libero"
-
+    X2ROBOT = "x2robot"
 
 @dataclasses.dataclass
 class Checkpoint:

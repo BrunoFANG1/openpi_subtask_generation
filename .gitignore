@@ -3,6 +3,10 @@ assets/
 checkpoints/
 data/
 wandb/
+dataset/
+packages
+
+.vscode
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

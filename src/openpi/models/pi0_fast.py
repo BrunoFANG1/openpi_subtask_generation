@@ -299,4 +299,5 @@ class Pi0FAST(_model.BaseModel):
 
         # Use lax.while_loop so we can jit the full decoding loop.
         _, output_tokens, _, _, _ = jax.lax.while_loop(cond, step, (last_logit, output_tokens, kv_cache, False, 0))
+        print(output_tokens.shape)
         return output_tokens

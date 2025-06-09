@@ -28,7 +28,7 @@ class ModelType(enum.Enum):
 
     PI0 = "pi0"
     PI0_FAST = "pi0_fast"
-
+    PI0_5 = "pi0.5"
 
 # The model always expects these images
 IMAGE_KEYS = (
@@ -109,7 +109,8 @@ class Observation(Generic[ArrayT]):
             raise ValueError("tokenized_prompt and tokenized_prompt_mask must be provided together.")
         # If images are uint8, convert them to [-1, 1] float32.
         for key in data["image"]:
-            if data["image"][key].dtype == np.uint8:
+            if data["image"][key].dtype == np.uint8 or data["image"][key].dtype == jnp.uint8:
+                # logging.info(f"Converting image {key} from uint8 to float32")
                 data["image"][key] = data["image"][key].astype(np.float32) / 255.0 * 2.0 - 1.0
         return cls(
             images=data["image"],

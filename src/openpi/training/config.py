@@ -455,12 +455,40 @@ class TrainConfig:
 
 # Use `get_config` if you need to get a config by name in your code.
 _CONFIGS = [
+    TrainConfig(
+        name="debug",
+        data=FakeDataConfig(),
+        batch_size=1280,
+        model=pi0.Pi0Config(paligemma_variant="dummy", action_expert_variant="dummy"),
+        save_interval=100,
+        overwrite=True,
+        exp_name="debug",
+        num_train_steps=10,
+        wandb_enabled=False,
+    ),
     #
     # Finetune X2Robot configs.
     #
     TrainConfig(
-        name="debug_brae",
-        model=pi0_fast.Pi0FASTConfig(),
+        name="infer_fast",
+        model=pi0_fast.Pi0FASTConfig(action_horizon=20),
+        batch_size=2,
+        # num_workers=100,
+        data=LeRobotX2robotDataConfig(
+            repo_id="entangle_line_20250323",
+            base_config=DataConfig(
+            # local_files_only=True,
+            ),
+            default_prompt="Do something for fun",
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_base/params"),
+        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
+        # Check the base TrainConfig class for a full list of available hyperparameters.
+        num_train_steps=30_000,
+    ),
+    TrainConfig(
+        name="infer_pi0",
+        model=pi0.Pi0Config(action_horizon=20),
         batch_size=2,
         # num_workers=100,
         data=LeRobotX2robotDataConfig(
@@ -837,18 +865,18 @@ _CONFIGS = [
     #
     # Debugging configs.
     #
-    TrainConfig(
-        name="debug",
-        data=FakeDataConfig(),
-        batch_size=2,
-        model=pi0_fast.Pi0FASTConfig(),
-        save_interval=100,
-        overwrite=True,
-        exp_name="debug",
-        num_train_steps=10,
-        wandb_enabled=False,
-        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_fast_base/params"),
-    ),
+    # TrainConfig(
+    #     name="debug",
+    #     data=FakeDataConfig(),
+    #     batch_size=2,
+    #     model=pi0_fast.Pi0FASTConfig(),
+    #     save_interval=100,
+    #     overwrite=True,
+    #     exp_name="debug",
+    #     num_train_steps=10,
+    #     wandb_enabled=False,
+    #     weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_fast_base/params"),
+    # ),
     TrainConfig(
         name="debug_restore",
         data=FakeDataConfig(),

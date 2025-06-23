@@ -393,9 +393,9 @@ class TrainConfig:
     data: DataConfigFactory = dataclasses.field(default_factory=FakeDataConfig)
 
     # Base directory for config assets (e.g., norm stats).
-    assets_base_dir: str = "/x2robot/brae/projects/openpi/assets"
+    assets_base_dir: str = "/x2robot/xinyuanfang/projects/openpi/assets"
     # Base directory for checkpoints.
-    checkpoint_base_dir: str = "/x2robot/brae/projects/openpi/checkpoints"
+    checkpoint_base_dir: str = "/x2robot/xinyuanfang/projects/openpi/checkpoints"
 
     # Random seed that will be used by random generators during training.
     seed: int = 42
@@ -582,7 +582,7 @@ _CONFIGS = [
             ),
             default_prompt="Sort and fold towels",
         ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot/brae/projects/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot/xinyuanfang/projects/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
         # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
         # Check the base TrainConfig class for a full list of available hyperparameters.
         num_train_steps=30_000,
@@ -591,7 +591,7 @@ _CONFIGS = [
         name="left_pi0",
         exp_name="debug_test",
         model=pi0.Pi0Config(),
-        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot/brae/projects/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot/xinyuanfang/projects/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
         data=LeRobotX2robotDataConfig(
             repo_id="debug_test",
             base_config=DataConfig(
@@ -617,7 +617,7 @@ _CONFIGS = [
             ),
             default_prompt="Sort and fold towels",
         ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot/brae/projects/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot/xinyuanfang/projects/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
         # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
         # Check the base TrainConfig class for a full list of available hyperparameters.
         num_train_steps=30_000,
@@ -657,7 +657,7 @@ _CONFIGS = [
             ),
             default_prompt="Sort and fold clothes",
         ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot/brae/projects/.cache/openpi/openpi-assets/checkpoints/pi0_fast_base/params"),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot/xinyuanfang/projects/.cache/openpi/openpi-assets/checkpoints/pi0_fast_base/params"),
         # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
         # Check the base TrainConfig class for a full list of available hyperparameters.
         num_train_steps=30_000,

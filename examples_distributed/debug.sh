@@ -2,15 +2,18 @@
 # Step 1: salloc --nodes=2 --ntasks-per-node=8 --gres=gpu:8 --cpus-per-task=12 --mem=175G --exclude master 
 # Step 2: srun bash srun_script.sh
 
+export WANDB_PROXY="http://10.7.145.219:3128"
+export HTTPS_PROXY="http://10.7.145.219:3128"
+export HTTP_PROXY="http://10.7.145.219:3128"
+export UV_CACHE_DIR="/x2robot/xinyuanfang/.cache/uv"
 
 export NCCL_BUFFSIZE=4194304  # 4 MiB = 4 * 1024 * 1024 bytes
 export NCCL_IB_QPS_PER_CONNECTION=4
 export NCCL_NVLS_ENABLE=0
 export LD_LIBRARY_PATH=/usr/local/cuda-12.8/compat
-export TF_CPP_VMODULE=asm_compiler=5 
-export TF_CPP_MIN_LOG_LEVEL=0
-export TF_XLA_FLAGS="--tf_xla_dump_hlo_graphs"
-export TF_CPP_MIN_LOG_LEVEL=0  # Ensure all logs are visible
+export TF_CPP_MIN_LOG_LEVEL=2  # Only show ERROR and FATAL messages
+# export TF_CPP_VMODULE=asm_compiler=5  # Commented out to reduce verbosity
+# export TF_XLA_FLAGS="--tf_xla_dump_hlo_graphs"  # Commented out to reduce verbosity
 
 set -e
 
@@ -23,6 +26,7 @@ echo "SLURM_NTASKS=$SLURM_NTASKS"
 echo "CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
 
 # (No need to manually remap CUDA_VISIBLE_DEVICES)
+export HYDRA_FULL_ERROR=1
 
 # ── JAX distributed env ──
 export JAX_USE_PJRT_CUDA_DEVICE=True
@@ -79,4 +83,4 @@ fi
 
 # ── Launch your training ──
 cd $(pwd)
-XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 uv run /x2robot/brae/projects/openpi/scripts/train_x2robot.py --config-name x2robot_test
+XLA_PYTHON_CLIENT_MEM_FRACTION=0.9 uv run /x2robot/xinyuanfang/projects/openpi/scripts/train_x2robot.py --config-name debug_test

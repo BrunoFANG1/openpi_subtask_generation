@@ -105,7 +105,7 @@ class Args:
     policy: Checkpoint | Default = dataclasses.field(default_factory=Default)
     log_replay: bool = False
     openloop: bool = False
-    openloop_filepath: str | None = '/x2robot/zhengwei/10044/20250410-day-spell-word-2'
+    openloop_filepath: str | None = '/x2robot/zhengwei/10055/20250606-day-fasten_the_belt/20250606-day-fasten_the_belt@MASTER_SLAVE_MODE@2025_06_06_11_55_39'
 
 
 # Default checkpoints that should be used for each environment.

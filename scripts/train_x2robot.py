@@ -1,8 +1,8 @@
 import os
-os.environ["HF_LEROBOT_HOME"] = "/x2robot/brae/.cache/lerobot"
+os.environ["HF_LEROBOT_HOME"] = "/x2robot/xinyuanfang/projects/.cache/lerobot"
 os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '0.95'
 # os.environ['CUDA_VISIBLE_DEVICES'] = '6,7'
-os.environ['OPENPI_DATA_HOME'] = '/x2robot/brae/.cache/openpi'
+os.environ['OPENPI_DATA_HOME'] = '/x2robot/xinyuanfang/projects/.cache/openpi'
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -126,7 +126,7 @@ def init_wandb(config: _config.TrainConfig, *, resuming: bool, log_code: bool = 
             name=config.exp_name,
             config=dataclasses.asdict(config),
             project=config.project_name,
-            mode='offline'
+            # mode='offline'
         )
         (ckpt_dir / "wandb_id.txt").write_text(wandb.run.id)
 
@@ -281,7 +281,7 @@ def main(cfg):
     init_logging()
     logging.info(f"Running on: {platform.node()}")
 
-    jax.config.update("jax_compilation_cache_dir", str(epath.Path("/x2robot/brae/.cache/openpi/jax").expanduser()))
+    jax.config.update("jax_compilation_cache_dir", str(epath.Path("/x2robot/xinyuanfang/projects/.cache/openpi/jax").expanduser()))
 
     # Create dataloader
     train_dataloader, val_dataloader = _data_loader.create_x2robot_dataloader(cfg, jax_process_id=jax.process_index(), collate_type=cfg.collate_type)
@@ -389,7 +389,7 @@ def main(cfg):
             batch = Observation.from_dict(per_process_batch[0]), per_process_batch[1]
 
             # Checkpoint saving logic
-            if step % 20000 == 0 and step != 0:
+            if step % 5000 == 0 and step != 0:
                 logging.info(f"Saving checkpoint at step {step}")
                 _checkpoints.save_custom_state(checkpoint_manager, train_state, step)
                 logging.info(f"Checkpoint saved at step {step}")

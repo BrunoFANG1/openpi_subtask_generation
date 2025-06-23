@@ -1,20 +1,20 @@
 defaults:
   - _self_
-  - task: spell_word
+  - task: entangle_line
   # - task: factory_pickitem
 
 # name: resnet18
 name: debug
-config_name: brae_debug # Use this config name to load the default config from openpi repo
+config_name: left_pi0 # Use this config name to load the default config from openpi repo
 
 task_name: ${task.name}
 shape_meta: ${task.shape_meta}
-exp_name: "pi0_fast_spell_word"
+exp_name: "pi0_entangle_line"
 # collate_type: "pi0_fast_spell_word"
 collate_type: "pi0_entangle_line" # Use this for entangle line task
 data:
-  action_truncated_instruction: 'diversity.distribute'
-  root_dir: /x2robot/brae/Data/hf_datasets_tmp2
+  action_truncated_instruction: None
+  root_dir: /x2robot/xinyuanfang/projects/Data/hf_datasets_tmp2
 model:
   model_config:
     # _target_: openpi.models.pi0_fast.Pi0FASTConfig
@@ -27,7 +27,7 @@ model:
     params_path: s3://openpi-assets/checkpoints/pi0_base/params
   data: # Use for inference data preprocessing
     _target_: openpi.training.config.LeRobotX2robotDataConfig
-    repo_id: spell_word
+    repo_id: entangle_line
     base_config:
       _target_: openpi.training.config.DataConfig
       local_files_only: True
@@ -35,10 +35,10 @@ model:
   num_train_steps: 80_000
 
 train_dataloader:
-  batch_size: 40 # 32-5.1s/it 16-8s/it 8-3.5s/it
+  batch_size: 32 # 32-5.1s/it 16-8s/it 8-3.5s/it
 
 val_dataloader:
-  batch_size: 40
+  batch_size: 32
 
 # optimizer:
 #   _target_: torch.optim.AdamW
@@ -100,7 +100,7 @@ checkpoint:
   checkpoint_dir: ${multi_run.run_dir}
 
 multi_run:
-  run_dir: /x2robot/brae/projects/openpi/checkpoints/initial_test/${now:%Y.%m.%d}/${now:%H.%M.%S}_${name}_${task_name}
+  run_dir: /x2robot/xinyuanfang/projects/openpi/checkpoints/initial_test/${now:%Y.%m.%d}/${now:%H.%M.%S}_${name}_${task_name}
   wandb_name_base: ${name}_${task_name}_${now:%Y.%m.%d-%H.%M.%S}
 
 hydra:

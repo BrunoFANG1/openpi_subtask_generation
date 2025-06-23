@@ -328,7 +328,7 @@ def create_x2robot_dataloader(
         action_keys=prediction_action_keys+obs_action_keys,
         use_diversity_file=use_diversity_file,
         use_jax = True,
-        action_truncated_instruction=cfg.data.action_truncated_instruction
+        action_truncated_instruction=None
     )
     total_frames = train_dataset.num_frames
     val_dataset = IterChunkDataset(
@@ -350,7 +350,7 @@ def create_x2robot_dataloader(
         action_keys=prediction_action_keys+obs_action_keys,
         use_diversity_file=use_diversity_file,
         use_jax = True,
-        action_truncated_instruction=cfg.data.action_truncated_instruction
+        action_truncated_instruction=None
     )
     total_frames_val = val_dataset.num_frames
     # 设置collate_fn

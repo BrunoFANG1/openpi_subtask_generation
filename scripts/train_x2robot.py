@@ -1,8 +1,10 @@
 import os
 os.environ["HF_LEROBOT_HOME"] = "/x2robot/xinyuanfang/projects/.cache/lerobot"
-os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '0.95'
 # os.environ['CUDA_VISIBLE_DEVICES'] = '6,7'
 os.environ['OPENPI_DATA_HOME'] = '/x2robot/xinyuanfang/projects/.cache/openpi'
+
+MASTER_ADDR = os.environ.get("MASTER_ADDR", None)
+MASTER_PORT = os.environ.get("MASTER_PORT", None)
 
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -45,7 +47,14 @@ import openpi.models.pi0 as pi0
 import openpi.models.pi0_fast as pi0_fast
 from openpi.models.model import Observation
 from hydra.utils import instantiate
-
+from x2robot_dataset.common.constants import ACTION_KEY_RANGES
+from x2robot_dataset.lazy_dataset import (
+    X2RDataChunkConfig,
+    X2RDataProcessingConfig,
+)
+from x2robot_dataset.dynamic_robot_dataset import DynamicRobotDataset
+from x2robot_dataset.common.constants import ACTION_KEY_RANGES
+from omegaconf import OmegaConf
 
 def sigterm_handler(signum, frame):
     logging.info(f"Process {jax.process_index()} received SIGTERM, exiting")
@@ -126,7 +135,7 @@ def init_wandb(config: _config.TrainConfig, *, resuming: bool, log_code: bool = 
             name=config.exp_name,
             config=dataclasses.asdict(config),
             project=config.project_name,
-            # mode='offline'
+            mode='offline'
         )
         (ckpt_dir / "wandb_id.txt").write_text(wandb.run.id)
 
@@ -254,19 +263,15 @@ def train_step(
     }
     return new_state, info
 
+def default(config:OmegaConf, attribute_level:str, default_value):
+    return OmegaConf.select(config, attribute_level, default=default_value)
 
 @hydra.main(
     version_base=None,
     config_path=str(pathlib.Path(__file__).parent.parent.joinpath("config")), 
     config_name=pathlib.Path(__file__).stem)
 def main(cfg):
-    # from openpi.training.config import get_config
 
-    # Due to type checking in openpi code, we need to get TrainConfig from get_config or manually setup one
-    # try:
-    #     config = get_config(cfg.config_name)
-    #     logging.info(f"Using default config from openpi: {config}")
-    # except:
     config = _config.TrainConfig(
         name=cfg.config_name,
         exp_name=cfg.exp_name,
@@ -278,13 +283,159 @@ def main(cfg):
 
     if int(os.environ.get("SLURM_NTASKS", "0")) > 1:
         jax.distributed.initialize()
+    # Set master addr and port after jax distributed initialization
+    os.environ['MASTER_ADDR'] = MASTER_ADDR
+    os.environ['MASTER_PORT'] = MASTER_PORT
+    os.environ['GLOO_SOCKET_IFNAME'] = 'eth0'
     init_logging()
     logging.info(f"Running on: {platform.node()}")
 
     jax.config.update("jax_compilation_cache_dir", str(epath.Path("/x2robot/xinyuanfang/projects/.cache/openpi/jax").expanduser()))
 
     # Create dataloader
-    train_dataloader, val_dataloader = _data_loader.create_x2robot_dataloader(cfg, jax_process_id=jax.process_index(), collate_type=cfg.collate_type)
+    train_test_split = default(cfg, "task.dataset.train_val_split", 0.9)
+
+    # configure dataset
+    horizon = default(cfg, "task.action_horizon", 20)
+    action_history_length = default(cfg, "task.action_history_length", 0)
+    image_history_length = default(cfg, "task.image_history_length", 0)
+    trim_stationary = default(cfg, 'task.trim_stationary', False) # 是否去除静止动作
+    filter_angle_outliers = default(cfg, "task.filter_angle_outliers", True)  # 是否过滤角度异常值, 默认要过滤
+    sample_rate = default(cfg, "task.dataset.sample_rate", 1.0)  # 针对action和image的采样率
+    cache_dir = default(cfg, "task.dataset.cache_dir", "/x2robot/Data/.cache/dataset_cache")  # 数据集根目录
+    dataset_config_path = default(cfg, "task.task_config_path", None)  # 数据集配置文件路径
+    assert dataset_config_path is not None, f"dataset_config_path is None, please check your config file"
+    
+    default_instruction = default(cfg, 'task.dataset.instruction', '')
+    instruction_path = default(cfg, 'task.dataset.instruction_path', None)
+    instruction_key = default(cfg, 'task.dataset.instruction_key', None)
+    one_by_one_relative = default(cfg, 'task.dataset.one_by_one_relative', False)
+    
+    print(f"instruction_key配置: {instruction_key}")
+    print(f"instruction_path配置: {instruction_path}")
+    
+    batch_size = cfg.train_dataloader.batch_size
+
+    # 从shape_meta中构建cam_mapping - 配置化方式
+    # camera_name -> obs_key
+    cam_mapping = {}
+    obs_shape_meta = cfg.task.shape_meta["obs"]
+    
+    for key, attr in obs_shape_meta.items():
+        obs_type = attr.get("type", "low_dim")
+        if obs_type == "rgb":
+            camera_name = attr.get("camera_name", None)
+            if camera_name is not None:
+                cam_mapping[camera_name] = key
+                print(f"Added cam mapping: {camera_name} -> {key}")
+            else:
+                print(f"Warning: RGB observation {key} missing camera_name")
+
+    
+    print(f"Final cam_mapping: {cam_mapping}")
+    merge_cur_history = action_history_length > 0  # agent_pos里是否加入动作历史
+    merge_image_history = image_history_length > 0  # 观测图像里是否加入图像历史
+
+    # 直接从任务配置中获取action keys
+    predict_action_keys = cfg.task.predict_action_keys
+    obs_action_keys = cfg.task.obs_action_keys
+    
+    # 验证配置
+    assert predict_action_keys is not None, "predict_action_keys must be configured in task config"
+    assert obs_action_keys is not None, "obs_action_keys must be configured in task config"
+
+    # configure dataset
+    data_config = X2RDataProcessingConfig()
+    data_config.update(
+        cam_mapping=cam_mapping,
+        class_type="x2",
+        train_test_split=train_test_split,
+        filter_angle_outliers=filter_angle_outliers,
+        sample_rate=sample_rate,
+        parse_tactile=False,
+        predict_action_keys=predict_action_keys,  # 直接使用配置
+        obs_action_keys=obs_action_keys,          # 直接使用配置
+        trim_stationary=trim_stationary,
+        cache_dir=cache_dir,
+        default_instruction=default_instruction,
+        instruction_path=instruction_path,
+        instruction_key=instruction_key,
+        one_by_one_relative = one_by_one_relative,
+    )
+
+    # Update norm_stats to data_config
+    #     min_range = np.array([-0.1, -0.5, -0.5, -3.0, -3.0, -3.0 , -9, -0.1, -0.5, -0.5, -3.0, -3.0, -3.0 , -9], dtype=np.float32)
+    #     max_range = np.array([0.5,  0.5,  0.5, 3.0, 3.0, 3.0, 9,0.5,  0.5,  0.5, 3.0, 3.0, 3.0, 9], dtype=np.float32)
+    #     # max_min = [0.6, 1.0, 1.0, 6.0, 6.0, 6.0, 18, 0.6, 1.0, 1.0, 6.0, 6.0, 6.0, 18]
+    #     action_stats = {
+    #         'state_mean': min_range,
+    #         'state_std': max_range - min_range,
+    #         'action_mean': min_range,
+    #         'action_std': max_range - min_range,
+    #     }
+    norm_stats = {}
+    predict_action_min, predict_action_max, agent_pos_min, agent_pos_max = [], [], [], []
+    for key in data_config.predict_action_keys:
+        predict_action_min += ACTION_KEY_RANGES[key]['min_range']
+        predict_action_max += ACTION_KEY_RANGES[key]['max_range']
+    for key in data_config.obs_action_keys:
+        agent_pos_min += ACTION_KEY_RANGES[key]['min_range']
+        agent_pos_max += ACTION_KEY_RANGES[key]['max_range']
+    norm_stats['action_mean'] = np.array(predict_action_min)
+    norm_stats['action_std'] = np.array(predict_action_max) - np.array(predict_action_min)
+    norm_stats['state_mean'] = np.array(agent_pos_min)
+    norm_stats['state_std'] = np.array(agent_pos_max) - np.array(agent_pos_min)
+    data_config.update(
+        norm_stats=norm_stats,
+    )
+
+    # TODO: Add extra action dims. e.g. 6D + relative action = 20
+
+    data_chunk_config = X2RDataChunkConfig().update(
+        left_padding=True if action_history_length > 0 else False,
+        right_padding=True,
+        predict_action_keys=predict_action_keys,
+        action_horizon=horizon,
+        action_history_length=action_history_length,
+        image_history_length=image_history_length,
+        merge_cur_history=merge_cur_history,
+        merge_image_history=merge_image_history,
+    )
+    
+    dataset = DynamicRobotDataset(
+        dataset_config_path=dataset_config_path,
+        data_config=data_config,
+        data_chunk_config=data_chunk_config,
+        rank=jax.process_index(),
+        world_size=jax.process_count(),
+        batch_size=batch_size,
+        # buffer_size=300,
+        device='jax',
+    )
+    train_num = dataset.global_train_iters.value
+    val_num = dataset.global_val_iters.value
+    total_frames = train_num * batch_size * jax.process_count()
+    total_frames_val = val_num * batch_size * jax.process_count()
+    # 计算train/val step
+    global_batch_size = batch_size * jax.process_count()
+    print(
+        f"rank {jax.process_index()} total_frames:{total_frames} total_frames_val:{total_frames_val} train_num {train_num}, val_num {val_num}",
+        flush=True,
+    )
+    print(f"rank {jax.process_index} batch_size_per_rank {batch_size} global_batch_size {global_batch_size}", flush=True)
+    
+    # set wall for jax distributed process
+    if jax.process_count() > 1:
+        # Synchronize all processes to ensure dataset is properly initialized across all ranks
+        from jax.experimental import multihost_utils
+        multihost_utils.sync_global_devices("Dataset initialization complete")
+        print(f"rank {jax.process_index()}: All processes synchronized after dataset initialization", flush=True)
+    
+    train_dataloader = dataset.get_train_dataloader()
+    # iterator = iter(train_dataloader)
+    # data = next(iterator)
+    # assert False, f"data: {data[0].keys()}"
+
 
     rng = jax.random.key(cfg.training.seed)
     train_rng, init_rng = jax.random.split(rng)
@@ -306,11 +457,17 @@ def main(cfg):
     # else:
     resuming = False
 
+    logging.info(f"debug line 1")
+    logging.info(f"train_dataloader: {type(train_dataloader)}")
     data_iter = iter(train_dataloader)
+    logging.info(f"debug line 2")
+    
     per_process_batch = next(data_iter)
+    logging.info(f"debug line 3")
     per_process_batch[0] = convert_per_process_batch_to_jax(per_process_batch[0], data_sharding) # on cpu
     per_process_batch[1] = convert_per_process_batch_to_jax(per_process_batch[1], data_sharding) # on cpu
     # logging.info(f"Initialized before:\n{training_utils.array_tree_to_info(per_process_batch)}")
+    logging.info(f"debug line 4")
     batch = Observation.from_dict(per_process_batch[0]), per_process_batch[1]
     local_shape = per_process_batch[1].sharding.shard_shape(per_process_batch[1].shape)
     logging.info(f"Local shape: {local_shape}")
@@ -363,35 +520,26 @@ def main(cfg):
                     wandb.log(reduced_info, step=step)
                 infos = []
             
-            # Try to get the next batch
-            iterator_exhausted = False
+
             try:
                 per_process_batch = next(data_iter)
-            except StopIteration:
-                iterator_exhausted = True
-            per_process_iterator_exhausted_value = np.array(1.0 if iterator_exhausted else 0.0)
-            global_iterator_exhausted_value = multihost_utils.process_allgather(per_process_iterator_exhausted_value)
-            iterator_exhausted_count = jnp.sum(global_iterator_exhausted_value)
-
-            # If any process's iterator is exhausted, all processes should reinitialize the data iterator
-            if iterator_exhausted_count > 0:
-                logging.info(f"Global iterator_exhausted_value: {global_iterator_exhausted_value}")
-                logging.info(f"Process {jax.process_index()}: Dataset exhausted, reinitializing data iterator")
-                gc.collect()
-                train_dataloader.shutdown()
-                epoch += 1
-                train_dataloader.dataset.reset_epoch(epoch)
+            except:
+                # If dataset is exhausted, reinitilize the dataloader
+                train_dataloader = dataset.get_train_dataloader()
                 data_iter = iter(train_dataloader)
                 per_process_batch = next(data_iter)
-            
             per_process_batch[0] = convert_per_process_batch_to_jax(per_process_batch[0], data_sharding) # on cpu
             per_process_batch[1] = convert_per_process_batch_to_jax(per_process_batch[1], data_sharding) # on cpu
             batch = Observation.from_dict(per_process_batch[0]), per_process_batch[1]
 
             # Checkpoint saving logic
             if step % 5000 == 0 and step != 0:
+                # Synchronize all processes before checkpoint saving
+                multihost_utils.sync_global_devices("Before checkpoint saving")
                 logging.info(f"Saving checkpoint at step {step}")
                 _checkpoints.save_custom_state(checkpoint_manager, train_state, step)
+                # Synchronize all processes after checkpoint saving
+                multihost_utils.sync_global_devices("After checkpoint saving")
                 logging.info(f"Checkpoint saved at step {step}")
 
     # except Exception as e:

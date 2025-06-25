@@ -13,6 +13,8 @@ from x2robot_dataset.lazy_dataset import (
 from x2robot_dataset.common.data_preprocessing import _CAM_MAPPING
 from x2robot_dataset.dataloader import DynamicDataLoader
 from x2robot_dataset.common.collate_fn import collate_wrapper
+from x2robot_dataset.dynamic_robot_dataset import DynamicRobotDataset
+from x2robot_dataset.common.constants import ACTION_KEY_RANGES
 
 import jax
 import jax.numpy as jnp
@@ -195,214 +197,151 @@ def create_x2robot_dataloader(
     cfg: dict,
     jax_process_id: int,
     collate_type: str = 'chunking',
-) -> DataLoader[dict]:
+) -> DataLoader[list]:
 
-    # Ruyi 逆天代码
-    rgb_keys = list()
-    lowdim_keys = list()
-    tactile_keys = list()
-    obs_shape_meta = cfg.task.shape_meta['obs']
-    for key, attr in obs_shape_meta.items():
-        type = attr.get('type', 'low_dim')
-        if type == 'rgb':
-            rgb_keys.append(key)
-        elif type == 'low_dim':
-            lowdim_keys.append(key)
-        elif type == 'tactile':
-            tactile_keys.append(key)
-    use_tactile = len(tactile_keys) > 0
-    action_dim = cfg.task.shape_meta['action'].shape[0]
-    low_dim_obs_horizon = cfg.task.low_dim_obs_horizon
-    img_obs_horizon = cfg.task.img_obs_horizon
-    action_dim = cfg.task.shape_meta['action'].shape[0]
-    parse_head_action = default(cfg, 'task.parse_head_action', False) 
-    parse_head_action_v2 = default(cfg, 'task.parse_head_action_v2', 0) # 0： 不解析，1：x+0.15,z+0.2, 同时解析head_yaw,head_pitch, 2：只x+0.15,z+0.2 
-    train_test_split = default(cfg, 'task.dataset.train_val_split', 0.9)
-    print(f'parse_head_action:{parse_head_action}, parse_head_action_v2:{parse_head_action_v2}')
-    use_quaternion = default(cfg, 'task.use_quaternion', False) # 是否使用四元数表示旋转
-    relative_action = default(cfg, 'task.relative_action', False) # 是否使用相对动作
-    print(f'use_quaternion:{use_quaternion}, relative_action:{relative_action}')
+    train_test_split = default(cfg, "task.dataset.train_val_split", 0.9)
 
     # configure dataset
-    low_dim_obs_horizon = default(cfg, 'task.low_dim_obs_horizon', 1)
-    img_obs_horizon = default(cfg, 'task.img_obs_horizon', 1)
-    horizon = default(cfg, 'task.action_horizon', 20)
-    is_bi_mode = default(cfg, 'task.dataset.is_bi_mode', True)
-    action_history_length = default(cfg, 'task.action_history_length', 0)
-    image_history_length = default(cfg, 'task.image_history_length', 0)
-    is_binocular = default(cfg, 'task.is_binocular', False) # 是否是双目模式
-    # is_factory = default(cfg, 'task.is_factory', False) # 是否是工厂模式, 已经被抛弃，改成自动根据工厂手持式设备标号判定是否要加，TODO：未来需要配置化
-    relative_action = default(cfg, 'task.relative_action', False) # 是否使用相对动作
-    add_noise = default(cfg, 'task.add_noise', False) # 是否添加噪声, 只对相对动作有效
-    filter_angle_outliers = default(cfg, 'task.filter_angle_outliers', True) # 是否过滤角度异常值, 默认要过滤
-    sample_rate = default(cfg, 'task.dataset.sample_rate', 1.0) # 针对action和image的采样率
-    save_meta_data = default(cfg, 'task.dataset.save_meta_data', True) # 是否保存meta数据
-    force_overwrite = default(cfg, 'task.dataset.force_overwrite', False) # 是否强制覆盖
-    use_gripper_cur = default(cfg, 'task.use_gripper_cur', False) # 是否使用关节力矩, 注意这里默认只使用最后一个关节的力矩
-    use_joint_cur = default(cfg, 'task.use_joint_cur', False) # 是否使用观测到的所有关节的力矩
-    use_diversity_file = default(cfg, 'task.use_diversity_file', False) # 是否使用多样性文件
-    use_gaussian_normalization = default(cfg, 'task.use_gaussian_normalization', False) # 是否使用Z-score normalization把输入数据归一化
-    use_quantile_normalization = default(cfg, 'task.use_quantile_normalization', False) # 是否使用quantile normalization把输入数据归一化
-    cam_mapping = _CAM_MAPPING
-    # 过滤掉不在rgb_keys里的cam
-    filter_cam_mapping = {}
-    for key,value in cam_mapping.items():
-        if value in rgb_keys:
-            filter_cam_mapping[key] = value
-    cam_mapping = filter_cam_mapping
-    merge_cur_history = action_history_length > 0 # agent_pos里是否加入动作历史 
+    horizon = default(cfg, "task.action_horizon", 20)
+    action_history_length = default(cfg, "task.action_history_length", 0)
+    image_history_length = default(cfg, "task.image_history_length", 0)
+    trim_stationary = default(cfg, 'task.trim_stationary', False) # 是否去除静止动作
+    filter_angle_outliers = default(cfg, "task.filter_angle_outliers", True)  # 是否过滤角度异常值, 默认要过滤
+    sample_rate = default(cfg, "task.dataset.sample_rate", 1.0)  # 针对action和image的采样率
+    cache_dir = default(cfg, "task.dataset.cache_dir", "/x2robot/Data/.cache/dataset_cache")  # 数据集根目录
+    dataset_config_path = default(cfg, "task.task_config_path", None)  # 数据集配置文件路径
+    assert dataset_config_path is not None, f"dataset_config_path is None, please check your config file"
     
-    _ACTION_KEY_FULL_MAPPING_XY = {
-        'follow_right_arm_joint_pos': 'follow_right_joint_pos',
-        'follow_right_arm_joint_dev': 'follow_right_joint_dev',
-        'follow_right_arm_joint_cur': 'follow_right_joint_cur',
-        'follow_right_ee_cartesian_pos': 'follow_right_position',
-        'follow_right_ee_rotation': 'follow_right_rotation',
-        'follow_right_gripper': 'follow_right_gripper',
-        'master_right_ee_cartesian_pos': 'master_right_position',
-        'master_right_ee_rotation': 'master_right_rotation',
-        'master_right_gripper': 'master_right_gripper',
-        'follow_left_arm_joint_pos': 'follow_left_joint_pos',
-        'follow_left_arm_joint_dev': 'follow_left_joint_dev',
-        'follow_left_arm_joint_cur': 'follow_left_joint_cur',
-        'follow_left_ee_cartesian_pos': 'follow_left_position',
-        'follow_left_ee_rotation': 'follow_left_rotation',
-        'follow_left_gripper': 'follow_left_gripper',
-        'master_left_ee_cartesian_pos': 'master_left_position',
-        'master_left_ee_rotation': 'master_left_rotation',
-        'master_left_gripper': 'master_left_gripper',
-    }
-    full_action_keys_needed = list(_ACTION_KEY_FULL_MAPPING_XY.keys()) # Special use for Xinyuan, Note: If you change any single varaible in data_config, the dataset cache will force regenerate, which cause multi-gpu training conflicts
-    prediction_action_keys = ['follow_left_ee_cartesian_pos','follow_left_ee_rotation','follow_left_gripper','follow_right_ee_cartesian_pos','follow_right_ee_rotation','follow_right_gripper']
-    minmax_range_robot = default(cfg, 'task.minmax_range_robot', 'arx') # 是否是arx,leju,leju_v2
-    obs_action_keys = None # obsered的action和预测的action可能不一样：设置为None则默认一样
-    if minmax_range_robot == 'arx_joint':
-        prediction_action_keys = ['follow_left_arm_joint_pos', 'follow_right_arm_joint_pos'] # Check normalizer for detailed explanation
-    elif minmax_range_robot == 'arx_master':
-        prediction_action_keys = ['master_left_ee_cartesian_pos','master_left_ee_rotation','master_left_gripper','master_right_ee_cartesian_pos','master_right_ee_rotation','master_right_gripper'] # Check normalizer for detailed explanation
-    elif minmax_range_robot == 'arx_master_obs_follow':
-        prediction_action_keys = ['master_left_ee_cartesian_pos','master_left_ee_rotation','master_left_gripper','master_right_ee_cartesian_pos','master_right_ee_rotation','master_right_gripper'] # Check normalizer for detailed explanation
-        obs_action_keys = ['follow_left_ee_cartesian_pos','follow_left_ee_rotation','follow_left_gripper','follow_right_ee_cartesian_pos','follow_right_ee_rotation','follow_right_gripper']
-    data_configs = []
-    data_folders = []
-    print(f'Deep Learning model needs to predict following action_keys:{prediction_action_keys}')
-    for dataset_dict in cfg.task.dataset.dataset_paths:
-        data_folders.append(dataset_dict['path'])
-        default_instruction = dataset_dict.get('instruction', '')
-        data_config = X2RDataProcessingConfig()
-        data_config.update(
-            cam_mapping=cam_mapping,
-            default_instruction=default_instruction,
-            class_type='x2',
-            train_test_split=train_test_split,
-            filter_angle_outliers=filter_angle_outliers,
-            sample_rate=sample_rate,
-            parse_tactile=use_tactile,
-            action_keys=full_action_keys_needed,
-        )
-        data_configs.append(data_config.as_dict())
+    default_instruction = default(cfg, 'task.dataset.instruction', '')
+    instruction_path = default(cfg, 'task.dataset.instruction_path', None)
+    instruction_key = default(cfg, 'task.dataset.instruction_key', None)
+    one_by_one_relative = default(cfg, 'task.dataset.one_by_one_relative', False)
     
+    print(f"instruction_key配置: {instruction_key}")
+    print(f"instruction_path配置: {instruction_path}")
+    
+    batch_size = cfg.train_dataloader.batch_size
+
+    # 从shape_meta中构建cam_mapping - 配置化方式
+    # camera_name -> obs_key
+    cam_mapping = {}
+    obs_shape_meta = cfg.task.shape_meta["obs"]
+    
+    for key, attr in obs_shape_meta.items():
+        obs_type = attr.get("type", "low_dim")
+        if obs_type == "rgb":
+            camera_name = attr.get("camera_name", None)
+            if camera_name is not None:
+                cam_mapping[camera_name] = key
+                print(f"Added cam mapping: {camera_name} -> {key}")
+            else:
+                print(f"Warning: RGB observation {key} missing camera_name")
+
+    
+    print(f"Final cam_mapping: {cam_mapping}")
+    merge_cur_history = action_history_length > 0  # agent_pos里是否加入动作历史
+    merge_image_history = image_history_length > 0  # 观测图像里是否加入图像历史
+
+    # 直接从任务配置中获取action keys
+    predict_action_keys = cfg.task.predict_action_keys
+    obs_action_keys = cfg.task.obs_action_keys
+    
+    # 验证配置
+    assert predict_action_keys is not None, "predict_action_keys must be configured in task config"
+    assert obs_action_keys is not None, "obs_action_keys must be configured in task config"
+
+    # configure dataset
+    data_config = X2RDataProcessingConfig()
+    data_config.update(
+        cam_mapping=cam_mapping,
+        class_type="x2",
+        train_test_split=train_test_split,
+        filter_angle_outliers=filter_angle_outliers,
+        sample_rate=sample_rate,
+        parse_tactile=False,
+        predict_action_keys=predict_action_keys,  # 直接使用配置
+        obs_action_keys=obs_action_keys,          # 直接使用配置
+        trim_stationary=trim_stationary,
+        cache_dir=cache_dir,
+        default_instruction=default_instruction,
+        instruction_path=instruction_path,
+        instruction_key=instruction_key,
+        one_by_one_relative = one_by_one_relative,
+    )
+
+    # Update norm_stats to data_config
+    #     min_range = np.array([-0.1, -0.5, -0.5, -3.0, -3.0, -3.0 , -9, -0.1, -0.5, -0.5, -3.0, -3.0, -3.0 , -9], dtype=np.float32)
+    #     max_range = np.array([0.5,  0.5,  0.5, 3.0, 3.0, 3.0, 9,0.5,  0.5,  0.5, 3.0, 3.0, 3.0, 9], dtype=np.float32)
+    #     # max_min = [0.6, 1.0, 1.0, 6.0, 6.0, 6.0, 18, 0.6, 1.0, 1.0, 6.0, 6.0, 6.0, 18]
+    #     action_stats = {
+    #         'state_mean': min_range,
+    #         'state_std': max_range - min_range,
+    #         'action_mean': min_range,
+    #         'action_std': max_range - min_range,
+    #     }
+    norm_stats = {}
+    predict_action_min, predict_action_max, agent_pos_min, agent_pos_max = [], [], [], []
+    for key in data_config.predict_action_keys:
+        predict_action_min += ACTION_KEY_RANGES[key]['min_range']
+        predict_action_max += ACTION_KEY_RANGES[key]['max_range']
+    for key in data_config.obs_action_keys:
+        agent_pos_min += ACTION_KEY_RANGES[key]['min_range']
+        agent_pos_max += ACTION_KEY_RANGES[key]['max_range']
+    norm_stats['action_mean'] = np.array(predict_action_min)
+    norm_stats['action_std'] = np.array(predict_action_max) - np.array(predict_action_min)
+    norm_stats['state_mean'] = np.array(agent_pos_min)
+    norm_stats['state_std'] = np.array(agent_pos_max) - np.array(agent_pos_min)
+    data_config.update(
+        norm_stats=norm_stats,
+    )
+
+    # TODO: Add extra action dims. e.g. 6D + relative action = 20
+
     data_chunk_config = X2RDataChunkConfig().update(
         left_padding=True if action_history_length > 0 else False,
         right_padding=True,
-        action_horizon=horizon+1,
+        predict_action_keys=predict_action_keys,
+        action_horizon=horizon,
         action_history_length=action_history_length,
-    )
-    batch_size=cfg.train_dataloader.batch_size
-    train_dataset = IterChunkDataset(
-        data_folders,
-        data_configs,
-        data_chunk_config,
-        preload_pool_size = 1,
-        num_preloader_threads  = 1,
-        max_frame_buffer_size = 2000,
-        num_frame_producer_threads = 1,
-        force_overwrite=force_overwrite,
-        split='train',
-        accelerator=None,
-        rank=jax_process_id,
-        world_size=jax.process_count(),
-        slice_size=batch_size, # 每个process的batch_size
-        root_dir=Path(cfg.data.root_dir),
-        save_meta_data=save_meta_data,
-        action_keys=prediction_action_keys+obs_action_keys,
-        use_diversity_file=use_diversity_file,
-        use_jax = True,
-        action_truncated_instruction=None
-    )
-    total_frames = train_dataset.num_frames
-    val_dataset = IterChunkDataset(
-        data_folders,
-        data_configs,
-        data_chunk_config,
-        preload_pool_size = 1,
-        num_preloader_threads  = 1,
-        max_frame_buffer_size = 2000,
-        num_frame_producer_threads = 1,
-        force_overwrite=force_overwrite,
-        split='test',
-        accelerator=None,
-        rank=jax_process_id,
-        world_size=jax.process_count(),
-        slice_size=batch_size,
-        root_dir=Path(cfg.data.root_dir),
-        save_meta_data=save_meta_data,
-        action_keys=prediction_action_keys+obs_action_keys,
-        use_diversity_file=use_diversity_file,
-        use_jax = True,
-        action_truncated_instruction=None
-    )
-    total_frames_val = val_dataset.num_frames
-    # 设置collate_fn
-    from openpi.models import tokenizer as _tokenizer
-    fast_tokenizer = _tokenizer.FASTTokenizer(250) # Don't change this
-    tokenizer = _tokenizer.PaligemmaTokenizer(48) # Don't change this
-    collate_fn = collate_wrapper(
-        collate_type = collate_type,
-        low_dim_obs_horizon=low_dim_obs_horizon,
-        img_obs_horizon=img_obs_horizon,
-        horizon=horizon,
-        action_dim=action_dim,
-        is_bi_mode=True,
-        sample2instruct=None,
-        to_lie_algebra=False,
-        sample2imginstruct=None,
-        parse_head_action=False,
-        mask_type=None,
-        mask_keys=None,
+        image_history_length=image_history_length,
         merge_cur_history=merge_cur_history,
-        relative_action=relative_action,
-        add_noise=add_noise,
-        action_keys=prediction_action_keys,
-        obs_action_keys=obs_action_keys,
-        use_gripper_cur=use_gripper_cur,
-        use_joint_cur=use_joint_cur,
-        diversity_process_fc=None if not use_diversity_file else True,
-        use_jax=True,
-        tokenizer=tokenizer,
-        fast_tokenizer=fast_tokenizer
+        merge_image_history=merge_image_history,
     )
-    world_size = jax.process_count()
-
+    
+    dataset = DynamicRobotDataset(
+        dataset_config_path=dataset_config_path,
+        data_config=data_config,
+        data_chunk_config=data_chunk_config,
+        rank=jax.process_index(),
+        world_size=jax.process_count(),
+        batch_size=batch_size,
+        buffer_size=300,
+        device='jax',
+    )
+    train_num = dataset.global_train_iters.value
+    val_num = dataset.global_val_iters.value
+    total_frames = train_num * batch_size * jax.process_count()
+    total_frames_val = val_num * batch_size * jax.process_count()
     # 计算train/val step
-    global_batch_size = batch_size * world_size
-    train_num = int(total_frames // batch_size // world_size)
-    val_num = int(total_frames_val // batch_size // world_size)
-
-    # 加载dataloader
-    train_dataloader = DynamicDataLoader(dataset=train_dataset,
-                                            batch_size=batch_size,
-                                            num_workers=1,
-                                            gpu_id=jax_process_id,
-                                            collate_fn=collate_fn,
-                                            length=train_num)
-    val_dataloader = DynamicDataLoader(dataset=val_dataset,
-                                        batch_size=batch_size,
-                                        num_workers=1,
-                                        gpu_id=jax_process_id,
-                                        collate_fn=collate_fn,
-                                        length=val_num)
-    return train_dataloader, val_dataloader
+    global_batch_size = batch_size * jax.process_count()
+    print(
+        f"rank {jax.process_index()} total_frames:{total_frames} total_frames_val:{total_frames_val} train_num {train_num}, val_num {val_num}",
+        flush=True,
+    )
+    print(f"rank {jax.process_index} batch_size_per_rank {batch_size} global_batch_size {global_batch_size}", flush=True)
+    
+    # set wall for jax distributed process
+    if jax.process_count() > 1:
+        # Synchronize all processes to ensure dataset is properly initialized across all ranks
+        from jax.experimental import multihost_utils
+        multihost_utils.sync_global_devices("Dataset initialization complete")
+        print(f"rank {jax.process_index()}: All processes synchronized after dataset initialization", flush=True)
+    
+    train_dataloader = dataset.get_train_dataloader()
+    iterator = iter(train_dataloader)
+    data = next(iterator)
+    assert False, f"data: {data[0].keys()}"
+    return train_dataloader
 
 class TorchDataLoader:
     def __init__(
@@ -499,3 +438,4 @@ def _worker_init_fn(worker_id: int) -> None:
     # means that this approach will not work for selecting the backend.
     os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
     os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"] = "platform"
+

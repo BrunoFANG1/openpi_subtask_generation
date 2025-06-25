@@ -1,0 +1,102 @@
+defaults:
+  - _self_
+  - task: distribute_package
+
+# name: resnet18
+name: debug
+config_name: left_pi0 # Use this config name to load the default config from openpi repo
+
+task_name: ${task.name}
+shape_meta: ${task.shape_meta}
+exp_name: "pi0_fasten_the_belt"
+# collate_type: "pi0_fast_spell_word"
+collate_type: "pi0_entangle_line" # Use this for fasten the belt task
+data:
+  action_truncated_instruction: None
+  root_dir: /x2robot/xinyuanfang/projects/Data/hf_datasets_tmp2 # TODO: Not used anymore, discard it
+model:
+  model_config:
+    # _target_: openpi.models.pi0_fast.Pi0FASTConfig
+    _target_: openpi.models.pi0.Pi0Config
+    action_dim: 32
+    action_horizon: 20
+    max_token_len: 250
+  weight_loader:
+    _target_: openpi.training.weight_loaders.CheckpointWeightLoader
+    params_path: s3://openpi-assets/checkpoints/pi0_base/params
+  data: # Use for inference data preprocessing # Not used anymore
+    _target_: openpi.training.config.LeRobotX2robotDataConfig
+    repo_id: infer_pi0
+    base_config:
+      _target_: openpi.training.config.DataConfig
+      local_files_only: True
+      asset_id: fasten_the_belt
+  num_train_steps: 80_000
+
+train_dataloader:
+  batch_size: 32 # 32-5.1s/it 16-8s/it 8-3.5s/it
+
+val_dataloader:
+  batch_size: 32
+
+training:
+  device: "cuda"
+  seed: 42
+  debug: False
+  # debug: True
+  lr_scheduler: cosine
+  lr_warmup_steps: 1000
+  num_epochs: 150
+  gradient_accumulate_every: 1
+  # EMA destroys performance when used with BatchNorm
+  # replace BatchNorm with GroupNorm.
+  use_ema: False
+  freeze_encoder: False
+  freeze_lm_encoder: False
+  # training loop control
+  # in epochs
+  rollout_every: 1
+  checkpoint_every: 5
+  val_every: 5
+  sample_every: 5
+  # steps per epoch
+  max_train_steps: null
+  max_val_steps: null
+  # misc
+  tqdm_interval_sec: 1.0
+  resume: False
+  fsdp_devices: 1
+
+logging: # Not used
+  # project: diffusion_policy_debug
+  project: distribute_package_ablations
+  resume: False
+  mode: offline
+  name: ${now:%Y.%m.%d-%H.%M.%S}_${name}_${task_name}
+  tags: ["${name}", "${task_name}", "${exp_name}"]
+  id: null
+  group: null
+
+checkpoint: # Not used
+  topk:
+    monitor_key: train_loss
+    mode: min
+    k: 5
+    format_str: 'epoch={epoch:04d}-train_loss={train_loss:.3f}.ckpt'
+  save_last_ckpt: True
+  save_last_snapshot: False
+  keep_period: 5000
+  checkpoint_dir: ${multi_run.run_dir}
+
+multi_run: # Not used
+  run_dir: /x2robot/xinyuanfang/projects/openpi/checkpoints/initial_test/${now:%Y.%m.%d}/${now:%H.%M.%S}_${name}_${task_name}
+  wandb_name_base: ${name}_${task_name}_${now:%Y.%m.%d-%H.%M.%S}
+
+hydra:
+  job:
+    override_dirname: ${name}
+  run:
+    dir: ${multi_run.run_dir} 
+  # sweep:
+  #   dir: /x2robot/ganruyi/workspace/diffusion_policy/${now:%H.%M.%S}_${name}_${task_name}
+  #   subdir: ${hydra.job.num}

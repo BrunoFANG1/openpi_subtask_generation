@@ -17,7 +17,6 @@ dependencies = [
     "imageio>=2.36.1",
     "jax[cuda12]==0.5.3",
     "jaxtyping==0.2.36",
-    "lerobot",
     "ml_collections==1.0.0",
     "numcodecs==0.15.1",
     "numpy>=1.22.4,<2.0.0",
@@ -48,7 +47,7 @@ dependencies = [
     "hydra-core==1.3.2",
     "scikit-image==0.25.2",
     "pympler",
-    "torchcodec"
+    "torchcodec==0.2.0",
 ]
 
 
@@ -69,7 +68,6 @@ dev = [
 
 [tool.uv.sources]
 openpi-client = { workspace = true }
-lerobot = { git = "https://github.com/huggingface/lerobot", rev = "0cf864870cf29f4738d3ade893e6fd13fbd7cdb5" }
 x2robot-dataset = { path = "../x2robot_dataset", editable = true }
 
 [tool.uv.workspace]

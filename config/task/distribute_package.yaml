@@ -1,0 +1,123 @@
+name: distribute_package
+# name: pick_waste_hist2s
+
+image_shape: [3, 480, 640]
+low_dim_obs_horizon: 1
+img_obs_horizon: 1
+action_horizon: 20
+action_history_length: 0
+image_history_length: 0
+is_binocular: False
+is_factory: False # 只x+0.15,z+0.2
+use_quaternion: False # 采用四元数来表示旋转
+add_noise: False
+filter_angle_outliers: False # 过滤角度异常值会报错
+use_gripper_cur: False
+use_joint_cur: False
+use_diversity_file: False
+task_config_path: /x2robot/xinyuanfang/projects/openpi/config/task/distribute_package.yaml
+obs_action_keys: [
+    "follow_left_ee_cartesian_pos",
+    "follow_left_ee_rotation",
+    "follow_left_gripper",
+    "follow_right_ee_cartesian_pos",
+    "follow_right_ee_rotation",
+    "follow_right_gripper",
+]
+predict_action_keys: [
+    "follow_left_ee_cartesian_pos",
+    "follow_left_ee_rotation",
+    "follow_left_gripper",
+    "follow_right_ee_cartesian_pos",
+    "follow_right_ee_rotation",
+    "follow_right_gripper",
+]
+
+dataset_path:
+- path: /x2robot/zhengwei/10068/20250623-day-package-distribute
+- path: /x2robot/zhengwei/10056/20250623-day-package-distribute
+- path: /x2robot/zhengwei/10072/20250623-day-package-distribute
+- path: /x2robot/zhengwei/10054/20250623-day-package-distribute-1
+- path: /x2robot/zhengwei/factory10022/20250623-day-package-distribute-1
+- path: /x2robot/zhengwei/10062/20250623-day-package-distribute
+- path: /x2robot/zhengwei/factory10022/20250623-day-package-distribute
+- path: /x2robot/zhengwei/10054/20250623-day-package-distribute
+- path: /x2robot/zhengwei/10067/20250623-day-package-distribute
+- path: /x2robot/zhengwei/10061/20250623-day-package-distribute
+- path: /x2robot/zhengwei/factory10026/20250623-day-package-distribute
+- path: /x2robot/zhengwei/10058/20250623-day-package_distribute_it_takes_two
+- path: /x2robot/zhengwei/10058/20250620-day-package-distribute
+- path: /x2robot/zhengwei/10054/20250620-day-package-distribute
+- path: /x2robot/zhengwei/10055/20250620-day-package-distribute
+- path: /x2robot/zhengwei/10072/20250620-day-package-distribute
+- path: /x2robot/zhengwei/10067/20250620-day-package-distribute
+- path: /x2robot/zhengwei/factory10026/20250620-day-package-distribute
+- path: /x2robot/zhengwei/10061/20250620-day-package-distribute
+- path: /x2robot/zhengwei/factory10022/20250620-day-package-distribute
+- path: /x2robot/zhengwei/10058/20250620-day-package_distribute_it_takes_two
+- path: /x2robot/zhengwei/10072/20250619-day-package-distribute
+- path: /x2robot/zhengwei/10062/20250619-day-package-distribute
+- path: /x2robot/zhengwei/10067/20250619-day-package-distribute
+- path: /x2robot/zhengwei/10054/20250619-day-package-distribute
+- path: /x2robot/zhengwei/factory10026/20250619-day-package-distribute
+- path: /x2robot/zhengwei/10061/20250619-day-package-distribute
+- path: /x2robot/zhengwei/10058/20250619-day-package_distribute_it_takes_two
+- path: /x2robot/zhengwei/10067/20250618-day-package-distribute
+- path: /x2robot/zhengwei/10062/20250618-day-package-distribute
+- path: /x2robot/zhengwei/10054/20250618-day-package-distribute
+- path: /x2robot/zhengwei/factory10026/20250618-day-package-distribute
+- path: /x2robot/zhengwei/10061/20250618-day-package-distribute
+- path: /x2robot/zhengwei/factory10022/20250618-day-package-distribute
+- path: /x2robot/zhengwei/10058/20250618-day-package_distribute_it_takes_two
+- path: /x2robot/zhengwei/10062/20250617-day-package-distribute-1
+- path: /x2robot/zhengwei/10058/20250617-day-package-distribute-double
+- path: /x2robot/zhengwei/10062/20250617-day-package-distribute
+- path: /x2robot/zhengwei/10058/20250617-day-package-distribute
+- path: /x2robot/zhengwei/10061/20250617-day-package-distribute
+- path: /x2robot/zhengwei/factory10026/20250617-day-package-distribute
+- path: /x2robot/zhengwei/10054/20250617-day-package-distribute
+- path: /x2robot/zhengwei/10067/20250617-day-package-distribute
+- path: /x2robot/zhengwei/factory10022/20250617-day-package-distribute
+- path: /x2robot/zhengwei/10058/20250616-day-package-distribute
+- path: /x2robot/zhengwei/10054/20250616-day-package-distribute
+- path: /x2robot/zhengwei/10061/20250616-day-package-distribute
+- path: /x2robot/zhengwei/factory10022/20250616-day-package-distribute
+- path: /x2robot/zhengwei/10062/20250616-day-package-distribute
+- path: /x2robot/zhengwei/10067/20250616-day-package-distribute
+
+shape_meta: &shape_meta
+  obs:
+    face_view:
+      shape: ${task.image_shape}
+      horizon: ${task.img_obs_horizon}
+      type: rgb
+      camera_name: faceImg
+    left_wrist_view:
+      shape: ${task.image_shape}
+      horizon: ${task.img_obs_horizon}
+      type: rgb
+      camera_name: leftImg
+    right_wrist_view:
+      shape: ${task.image_shape}
+      horizon: ${task.img_obs_horizon}
+      type: rgb
+      camera_name: rightImg
+    agent_pos:
+      shape: [14] # 14 + 14
+      horizon: ${eval:'${task.low_dim_obs_horizon} + ${task.action_history_length}'}
+      type: low_dim
+  action:
+    shape: [14]
+    horizon: ${task.action_horizon}
+    type: low_dim
+
+dataset:
+  dataset_paths: ${task.dataset_path}
+  # seed: 42
+  cache_dir: /x2robot/xinyuanfang/.cache/dataset_cache
+  is_bi_mode: True
+  repeat_num: 1
+  train_val_split: 0.99
+  # sample_ratio: [1.0, 1.0]
+  save_meta_data: True
+  force_overwrite: False

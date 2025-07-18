@@ -11,7 +11,7 @@ class PaligemmaTokenizer:
     def __init__(self, max_len: int = 48):
         self._max_len = max_len
 
-        path = download.maybe_download("/x2robot/xinyuanfang/projects/.cache/openpi/big_vision/paligemma_tokenizer.model", gs={"token": "anon"})
+        path = download.maybe_download("/x2robot_v2/xinyuanfang/projects/.cache/openpi/big_vision/paligemma_tokenizer.model", gs={"token": "anon"})
         with path.open("rb") as f:
             self._tokenizer = sentencepiece.SentencePieceProcessor(model_proto=f.read())
 
@@ -35,13 +35,19 @@ class PaligemmaTokenizer:
 
         return np.asarray(tokens), np.asarray(mask)
 
+    def detokenize(self, tokens: np.ndarray) -> str:
+        """Decode tokens back to text, removing padding tokens."""
+        # Remove padding tokens (tokens with value 0)
+        non_padding_tokens = tokens[tokens != 0]
+        return self._tokenizer.decode(non_padding_tokens.tolist())
+
 
 class FASTTokenizer:
     def __init__(self, max_len: int = 256, fast_tokenizer_path: str = "physical-intelligence/fast"):
         self._max_len = max_len
 
         # Download base PaliGemma tokenizer
-        path = download.maybe_download("/x2robot/xinyuanfang/projects/.cache/openpi/big_vision/paligemma_tokenizer.model", gs={"token": "anon"})
+        path = download.maybe_download("/x2robot_v2/xinyuanfang/projects/.cache/openpi/big_vision/paligemma_tokenizer.model", gs={"token": "anon"})
         with path.open("rb") as f:
             self._paligemma_tokenizer = sentencepiece.SentencePieceProcessor(model_proto=f.read())
 

@@ -1,7 +1,7 @@
 import os
-os.environ["HF_LEROBOT_HOME"] = "/x2robot/xinyuanfang/projects/.cache/lerobot"
+os.environ["HF_LEROBOT_HOME"] = "/x2robot_v2/xinyuanfang/projects_v2/.cache/lerobot"
 # os.environ['CUDA_VISIBLE_DEVICES'] = '6,7'
-os.environ['OPENPI_DATA_HOME'] = '/x2robot/xinyuanfang/projects/.cache/openpi'
+os.environ['OPENPI_DATA_HOME'] = '/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi'
 
 MASTER_ADDR = os.environ.get("MASTER_ADDR", None)
 MASTER_PORT = os.environ.get("MASTER_PORT", None)
@@ -10,6 +10,7 @@ import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 import gc
+import time
 import hydra
 import signal
 import pathlib
@@ -63,7 +64,7 @@ def sigterm_handler(signum, frame):
 signal.signal(signal.SIGTERM, sigterm_handler)
 
 
-def init_logging():
+def init_logging(debug=False):
     """Custom logging format for better readability. Only logs from main process."""
     level_mapping = {"DEBUG": "D", "INFO": "I", "WARNING": "W", "ERROR": "E", "CRITICAL": "C"}
 
@@ -80,7 +81,7 @@ def init_logging():
         )
 
         logger = logging.getLogger()
-        logger.setLevel(logging.INFO)
+        logger.setLevel(logging.DEBUG if debug else logging.INFO)
         logger.handlers[0].setFormatter(formatter)
     else:
         # For non-main processes, set the root logger to a high level to suppress most messages
@@ -135,7 +136,7 @@ def init_wandb(config: _config.TrainConfig, *, resuming: bool, log_code: bool = 
             name=config.exp_name,
             config=dataclasses.asdict(config),
             project=config.project_name,
-            mode='offline'
+            # mode='offline'
         )
         (ckpt_dir / "wandb_id.txt").write_text(wandb.run.id)
 
@@ -272,6 +273,7 @@ def default(config:OmegaConf, attribute_level:str, default_value):
     config_name=pathlib.Path(__file__).stem)
 def main(cfg):
 
+    # Create a complete TrainConfig with all required parameters
     config = _config.TrainConfig(
         name=cfg.config_name,
         exp_name=cfg.exp_name,
@@ -279,18 +281,32 @@ def main(cfg):
         weight_loader=instantiate(cfg.model.weight_loader),
         data=instantiate(cfg.model.data),
         num_train_steps=cfg.model.num_train_steps,
+        lr_schedule=instantiate(cfg.lr_schedule) if hasattr(cfg, 'lr_schedule') else _optimizer.CosineDecaySchedule(),
+        optimizer=instantiate(cfg.optimizer) if hasattr(cfg, 'optimizer') else _optimizer.AdamW(),
+        batch_size=cfg.train_dataloader.batch_size,
+        num_workers=cfg.train_dataloader.get('num_workers', 2),
+        log_interval=cfg.training.get('log_interval', 100),
+        save_interval=cfg.training.get('save_interval', 1000),
+        keep_period=cfg.checkpoint.get('keep_period', 1000),
+        overwrite=cfg.training.get('overwrite', False),
+        resume=cfg.training.get('resume', False),
+        wandb_enabled=cfg.logging.get('enabled', True),
+        fsdp_devices=cfg.training.get('fsdp_devices', 1),
+        seed=cfg.training.seed,
     )
 
     if int(os.environ.get("SLURM_NTASKS", "0")) > 1:
         jax.distributed.initialize()
     # Set master addr and port after jax distributed initialization
-    os.environ['MASTER_ADDR'] = MASTER_ADDR
-    os.environ['MASTER_PORT'] = MASTER_PORT
+    if MASTER_ADDR:
+        os.environ['MASTER_ADDR'] = MASTER_ADDR
+    if MASTER_PORT:
+        os.environ['MASTER_PORT'] = MASTER_PORT
     os.environ['GLOO_SOCKET_IFNAME'] = 'eth0'
     init_logging()
     logging.info(f"Running on: {platform.node()}")
 
-    jax.config.update("jax_compilation_cache_dir", str(epath.Path("/x2robot/xinyuanfang/projects/.cache/openpi/jax").expanduser()))
+    jax.config.update("jax_compilation_cache_dir", str(epath.Path("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/jax").expanduser()))
 
     # Create dataloader
     train_test_split = default(cfg, "task.dataset.train_val_split", 0.9)
@@ -302,7 +318,7 @@ def main(cfg):
     trim_stationary = default(cfg, 'task.trim_stationary', False) # 是否去除静止动作
     filter_angle_outliers = default(cfg, "task.filter_angle_outliers", True)  # 是否过滤角度异常值, 默认要过滤
     sample_rate = default(cfg, "task.dataset.sample_rate", 1.0)  # 针对action和image的采样率
-    cache_dir = default(cfg, "task.dataset.cache_dir", "/x2robot/Data/.cache/dataset_cache")  # 数据集根目录
+    cache_dir = default(cfg, "task.dataset.cache_dir", "/x2robot_v2/Data/.cache/dataset_cache")  # 数据集根目录
     dataset_config_path = default(cfg, "task.task_config_path", None)  # 数据集配置文件路径
     assert dataset_config_path is not None, f"dataset_config_path is None, please check your config file"
     
@@ -344,6 +360,12 @@ def main(cfg):
     assert predict_action_keys is not None, "predict_action_keys must be configured in task config"
     assert obs_action_keys is not None, "obs_action_keys must be configured in task config"
 
+    use_custom_action_data_path = default(cfg, 'task.use_custom_action_data_path', False)
+    global_action_data_base_path = default(cfg, 'task.global_action_data_base_path', None)
+    ignore_prediction_keys = default(cfg, 'task.ignore_prediction_keys', [])
+    detect_motion = default(cfg, 'task.detect_motion', True)
+    custon_normalization_path = default(cfg, 'task.custon_normalization_path', None)
+
     # configure dataset
     data_config = X2RDataProcessingConfig()
     data_config.update(
@@ -360,7 +382,12 @@ def main(cfg):
         default_instruction=default_instruction,
         instruction_path=instruction_path,
         instruction_key=instruction_key,
-        one_by_one_relative = one_by_one_relative,
+        one_by_one_relative=one_by_one_relative,
+        use_custom_action_data_path=use_custom_action_data_path,
+        global_action_data_base_path=global_action_data_base_path,
+        ignore_prediction_keys=ignore_prediction_keys,
+        distributed_instruction_ratio=1.0,
+        custon_normalization_path=custon_normalization_path,
     )
 
     # Update norm_stats to data_config
@@ -381,6 +408,14 @@ def main(cfg):
     for key in data_config.obs_action_keys:
         agent_pos_min += ACTION_KEY_RANGES[key]['min_range']
         agent_pos_max += ACTION_KEY_RANGES[key]['max_range']
+    # TODO: Temp fix
+    if custon_normalization_path is not None:
+        with open(custon_normalization_path, 'r') as f:
+            import json
+            norm_stats = json.load(f)
+            norm_stats['low_quantile'] = np.array(norm_stats['low_quantile'])
+            norm_stats['high_quantile'] = np.array(norm_stats['high_quantile'])
+
     norm_stats['action_mean'] = np.array(predict_action_min)
     norm_stats['action_std'] = np.array(predict_action_max) - np.array(predict_action_min)
     norm_stats['state_mean'] = np.array(agent_pos_min)
@@ -396,6 +431,7 @@ def main(cfg):
         right_padding=True,
         predict_action_keys=predict_action_keys,
         action_horizon=horizon,
+        obs_action_keys=obs_action_keys,
         action_history_length=action_history_length,
         image_history_length=image_history_length,
         merge_cur_history=merge_cur_history,
@@ -439,23 +475,28 @@ def main(cfg):
 
     rng = jax.random.key(cfg.training.seed)
     train_rng, init_rng = jax.random.split(rng)
+    resume_train = default(cfg, "training.resume_train", False)
 
     mesh = sharding.make_mesh(cfg.training.fsdp_devices)
     data_sharding = jax.sharding.NamedSharding(mesh, jax.sharding.PartitionSpec(sharding.DATA_AXIS))
     replicated_sharding = jax.sharding.NamedSharding(mesh, jax.sharding.PartitionSpec())
 
+    # Ensure checkpoint directory exists before initializing checkpoint manager
+    checkpoint_dir = config.checkpoint_dir
+    if jax.process_index() == 0:
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        logging.info(f"Created checkpoint directory: {checkpoint_dir}")
 
     checkpoint_manager, resuming = _checkpoints.initialize_checkpoint_dir(
         config.checkpoint_dir,
         keep_period=config.keep_period,
-        overwrite=True,
-        resume=False,
+        overwrite=False,
+        resume=resume_train,
     )
 
     if jax.process_index() == 0:
         init_wandb(config, resuming=resuming, enabled=config.wandb_enabled)
     # else:
-    resuming = False
 
     logging.info(f"debug line 1")
     logging.info(f"train_dataloader: {type(train_dataloader)}")
@@ -479,8 +520,9 @@ def main(cfg):
     logging.info(f"Initialized train state:\n{training_utils.array_tree_to_info(train_state.params)}")
 
     if resuming:
-        pass
-        # train_state = _checkpoints.restore_state(checkpoint_manager, train_state, data_loader)
+        train_state = _checkpoints.restore_state(checkpoint_manager, train_state)
+        logging.info(f"Restored train state: from {checkpoint_manager.directory}")
+        # assert False, "debug line 5" # TODO: Test resume train
 
     logging.info(f"Jit compiling train_step")
     ptrain_step = jax.jit(
@@ -500,54 +542,53 @@ def main(cfg):
 
     infos = []
     epoch = 0
-    # try:
-    for step in pbar:
-        with sharding.set_mesh(mesh):
-            try:
-                train_state, info = ptrain_step(train_rng, train_state, batch)
-            except Exception as e:
-                import traceback
-                full_traceback = traceback.format_exc()
-                logging.error(f"Error in training step: {e}\n{full_traceback}")
-                raise  # This will cause process to exit with error
-            infos.append(info)
-            if step % config.log_interval == 0:
-                stacked_infos = common_utils.stack_forest(infos)
-                reduced_info = jax.device_get(jax.tree.map(jnp.mean, stacked_infos))
-                info_str = ", ".join(f"{k}={v:.4f}" for k, v in reduced_info.items())
-                pbar.write(f"Step {step}: {info_str}")
-                if jax.process_index() == 0:
-                    wandb.log(reduced_info, step=step)
-                infos = []
-            
+    try:
+        for step in pbar:
+            with sharding.set_mesh(mesh):
+                try:
+                    train_state, info = ptrain_step(train_rng, train_state, batch)
+                except Exception as e:
+                    import traceback
+                    full_traceback = traceback.format_exc()
+                    logging.error(f"Error in training step: {e}\n{full_traceback}")
+                    raise  # This will cause process to exit with error
+                infos.append(info)
+                if step % config.log_interval == 0:
+                    stacked_infos = common_utils.stack_forest(infos)
+                    reduced_info = jax.device_get(jax.tree.map(jnp.mean, stacked_infos))
+                    info_str = ", ".join(f"{k}={v:.4f}" for k, v in reduced_info.items())
+                    pbar.write(f"Step {step}: {info_str}")
+                    if jax.process_index() == 0:
+                        wandb.log(reduced_info, step=step)
+                    infos = []
+                
+                try:
+                    per_process_batch = next(data_iter)
+                except:
+                    # If dataset is exhausted, reinitilize the dataloader
+                    train_dataloader = dataset.get_train_dataloader()
+                    data_iter = iter(train_dataloader)
+                    per_process_batch = next(data_iter)
+                per_process_batch[0] = convert_per_process_batch_to_jax(per_process_batch[0], data_sharding) # on cpu
+                per_process_batch[1] = convert_per_process_batch_to_jax(per_process_batch[1], data_sharding) # on cpu
+                batch = Observation.from_dict(per_process_batch[0]), per_process_batch[1]
 
-            try:
-                per_process_batch = next(data_iter)
-            except:
-                # If dataset is exhausted, reinitilize the dataloader
-                train_dataloader = dataset.get_train_dataloader()
-                data_iter = iter(train_dataloader)
-                per_process_batch = next(data_iter)
-            per_process_batch[0] = convert_per_process_batch_to_jax(per_process_batch[0], data_sharding) # on cpu
-            per_process_batch[1] = convert_per_process_batch_to_jax(per_process_batch[1], data_sharding) # on cpu
-            batch = Observation.from_dict(per_process_batch[0]), per_process_batch[1]
+                # Checkpoint saving logic
+                if step % 5000 == 0 and step != 0:
+                    # Synchronize all processes before checkpoint saving
+                    multihost_utils.sync_global_devices("Before checkpoint saving")
+                    logging.info(f"Saving checkpoint at step {step}")
+                    _checkpoints.save_custom_state(checkpoint_manager, train_state, step)
+                    # Synchronize all processes after checkpoint saving
+                    multihost_utils.sync_global_devices("After checkpoint saving")
+                    logging.info(f"Checkpoint saved at step {step}")
 
-            # Checkpoint saving logic
-            if step % 5000 == 0 and step != 0:
-                # Synchronize all processes before checkpoint saving
-                multihost_utils.sync_global_devices("Before checkpoint saving")
-                logging.info(f"Saving checkpoint at step {step}")
-                _checkpoints.save_custom_state(checkpoint_manager, train_state, step)
-                # Synchronize all processes after checkpoint saving
-                multihost_utils.sync_global_devices("After checkpoint saving")
-                logging.info(f"Checkpoint saved at step {step}")
-
-    # except Exception as e:
-    #     import traceback
-    #     full_traceback = traceback.format_exc()
-    #     logging.error(f"Process {jax.process_index()} failed with error: {e}\n{full_traceback}")
-    #     # Exit with error code
-    #     os._exit(1)
+    except Exception as e:
+        import traceback
+        full_traceback = traceback.format_exc()
+        logging.error(f"Process {jax.process_index()} failed with error: {e}\n{full_traceback}")
+        # Exit with error code
+        os._exit(1)
 
     logging.info("Waiting for checkpoint manager to finish")
     checkpoint_manager.wait_until_finished()

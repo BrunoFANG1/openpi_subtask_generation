@@ -393,9 +393,9 @@ class TrainConfig:
     data: DataConfigFactory = dataclasses.field(default_factory=FakeDataConfig)
 
     # Base directory for config assets (e.g., norm stats).
-    assets_base_dir: str = "/x2robot/xinyuanfang/projects/openpi/assets"
+    assets_base_dir: str = "/x2robot_v2/xinyuanfang/projects_v2/openpi/assets"
     # Base directory for checkpoints.
-    checkpoint_base_dir: str = "/x2robot/xinyuanfang/projects/openpi/checkpoints"
+    checkpoint_base_dir: str = "/x2robot_v2/xinyuanfang/projects_v2/openpi/checkpoints"
 
     # Random seed that will be used by random generators during training.
     seed: int = 42
@@ -582,7 +582,7 @@ _CONFIGS = [
             ),
             default_prompt="Sort and fold towels",
         ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot/xinyuanfang/projects/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
         # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
         # Check the base TrainConfig class for a full list of available hyperparameters.
         num_train_steps=30_000,
@@ -591,14 +591,20 @@ _CONFIGS = [
         name="left_pi0",
         exp_name="debug_test",
         model=pi0.Pi0Config(),
-        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot/xinyuanfang/projects/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
         data=LeRobotX2robotDataConfig(
-            repo_id="debug_test",
+            repo_id="pi0_distribute_package",
             base_config=DataConfig(
-            asset_id="debug_test",
+            asset_id="pi0_distribute_package",
             local_files_only=True,
             ),
             default_prompt="",
+        ),
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=3000,
+            peak_lr=2.5e-5,
+            decay_steps=150_000,
+            decay_lr=2.5e-6,
         ),
         # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
         # Check the base TrainConfig class for a full list of available hyperparameters.
@@ -617,7 +623,7 @@ _CONFIGS = [
             ),
             default_prompt="Sort and fold towels",
         ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot/xinyuanfang/projects/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
         # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
         # Check the base TrainConfig class for a full list of available hyperparameters.
         num_train_steps=30_000,

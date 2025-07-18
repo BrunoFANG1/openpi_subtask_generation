@@ -18,6 +18,9 @@ def initialize_checkpoint_dir(
 ) -> tuple[ocp.CheckpointManager, bool]:
     checkpoint_dir = epath.Path(checkpoint_dir).resolve()
     resuming = False
+    if resume is True:
+        resuming = True
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
     if jax.process_index() == 0:
         if checkpoint_dir.exists():
             if overwrite:
@@ -25,14 +28,15 @@ def initialize_checkpoint_dir(
                 checkpoint_dir.mkdir(parents=True, exist_ok=True)
                 logging.info(f"Wiped checkpoint directory {checkpoint_dir}")
             elif resume:
+                logging.info(f"Resuming training from checkpoint directory {checkpoint_dir}")
                 resuming = True
             else:
-                raise FileExistsError(
-                    f"Checkpoint directory {checkpoint_dir} already exists. Use --overwrite or --resume "
-                    "to indicate how to handle it."
-                )
+                # raise FileExistsError(
+                #     f"Checkpoint directory {checkpoint_dir} already exists. Use --overwrite or --resume "
+                #     "to indicate how to handle it."
+                # )
+                pass
 
-    checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
     mngr = ocp.CheckpointManager(
         checkpoint_dir,
@@ -99,10 +103,10 @@ def save_custom_state(
 def restore_state(
     checkpoint_manager: ocp.CheckpointManager,
     state: training_utils.TrainState,
-    data_loader: _data_loader.DataLoader,
+    # data_loader: _data_loader.DataLoader,
     step: int | None = None,
 ) -> training_utils.TrainState:
-    del data_loader
+    # del data_loader
 
     with at.disable_typechecking():
         # Split params that can be used for inference into a separate item.

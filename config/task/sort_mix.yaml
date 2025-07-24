@@ -1,0 +1,344 @@
+name: sort_mix
+# name: pick_waste_hist2s
+
+image_shape: [3, 480, 640]
+low_dim_obs_horizon: 1
+img_obs_horizon: 1
+action_horizon: 30
+action_history_length: 0
+image_history_length: 0
+is_binocular: False
+distributed_instruction_ratio: 0.0
+is_factory: False # 只x+0.15,z+0.2
+use_quaternion: False # 采用四元数来表示旋转
+add_noise: False
+filter_angle_outliers: False # 过滤角度异常值会报错
+use_gripper_cur: False
+use_joint_cur: False
+use_diversity_file: False
+task_config_path: /x2robot_v2/xinyuanfang/projects_v2/openpi/config/task/sort_mix.yaml
+obs_action_keys: [
+    "follow_left_ee_cartesian_pos",
+    "follow_left_ee_rotation",
+    "follow_left_gripper",
+    "follow_right_ee_cartesian_pos",
+    "follow_right_ee_rotation",
+    "follow_right_gripper",
+    "follow_left_gripper_cur",
+    "follow_right_gripper_cur",
+    "velocity_decomposed",
+    "height",
+    "head_rotation"
+]
+predict_action_keys: [
+    "master_left_ee_cartesian_pos",
+    "master_left_ee_rotation",
+    "follow_left_gripper",
+    "master_right_ee_cartesian_pos",
+    "master_right_ee_rotation",
+    "follow_right_gripper",
+    "velocity_decomposed",
+    "height",
+    "head_rotation",
+]
+
+dataset_path:
+
+# Transfer Red Basket
+- path: /x2robot_data/zhengwei/10104/20250722-day-transfer_red_basket-new_cart_pos1
+- path: /x2robot_data/zhengwei/10104/20250722-day-transfer_red_basket-new_cart_pos
+- path: /x2robot_data/zhengwei/10085/20250722-day-transfer_red_basket-new_cart_pos
+- path: /x2robot_data/zhengwei/factory10016/20250721-night-transfer_red_basket-new-cart-pos
+- path: /x2robot_data/zhengwei/10085/20250721-night-transfer_red_basket-new_cart_pos
+- path: /x2robot_data/zhengwei/10106/20250721-night-transfer_red_basket-new_cart_pos_1
+- path: /x2robot_data/zhengwei/10085/20250721-day-transfer_red_basket-new_cart_pos
+- path: /x2robot_data/zhengwei/10104/20250721-day-transfer_red_basket-new_cart_pos
+- path: /x2robot_data/zhengwei/10106/20250721-night-transfer_red_basket-new_cart_pos
+- path: /x2robot_data/zhengwei/10080/20250721-night-transfer_red_basket-new_cart_pos
+- path: /x2robot_data/zhengwei/factory10016/20250720-night-transfer_red_basket-new-cart-pos
+- path: /x2robot_data/zhengwei/10085/20250714-night-10049-transfer_red_basket_infer
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10085/20250714-day-10049-transfer_red_basket_infer
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10085/20250713-day-10049-transfer_red_basket_infer
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10088/20250712-day-10049-transfer_red_basket_infer
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10085/20250712-day-10049-transfer_red_basket_infer
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10085/20250711-night-10049-transfer_red_basket_infer
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10085/20250711-day-10049-transfer_red_basket_infer
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10085/20250710-night-10049-transfer_red_basket_infer
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10085/20250710-day-10049-transfer_red_basket_infer
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10080/20250720-night-transfer_red_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/10106/20250720-night-transfer_red_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/factory10016/20250719-night-transfer_red_basket-new-cart-pos
+- path: /x2robot_data/zhengwei/10085/20250719-night-transfer_red_basket-new_cart_pos
+- path: /x2robot_data/zhengwei/10085/20250719-night-transfer_red_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/10085/20250719-day-transfer_red_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/10106/20250719-night-transfer_red_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/10080/20250719-night-transfer_red_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/factory10016/20250718-night-transfer_red_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/10085/20250718-night-transfer_red_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/10085/20250718-day-transfer_red_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/10081/20250718-night-transfer_red_basket-no_moving_cart_1
+- path: /x2robot_data/zhengwei/10082/20250718-night-transfer_red_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/10081/20250718-night-transfer_red_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/10085/20250717-day-transfer_red_basket
+- path: /x2robot_data/zhengwei/factory10016/20250716-night-transfer_red_basket
+- path: /x2robot_data/zhengwei/10080/20250716-night-transfer_red_basket
+- path: /x2robot_data/zhengwei/10104/20250716-night-transfer_red_basket
+- path: /x2robot_data/zhengwei/10085/20250716-night-transfer_red_basket
+- path: /x2robot_data/zhengwei/10085/20250716-day-transfer_red_basket
+- path: /x2robot_data/zhengwei/10104/20250715-night-transfer_red_basket
+- path: /x2robot_data/zhengwei/10085/20250715-night-transfer_red_basket
+- path: /x2robot_data/zhengwei/10085/20250715-day-transfer_red_basket--2
+- path: /x2robot_data/zhengwei/10085/20250715-day-transfer_red_basket--1
+
+# Transfer Green Basket
+- path: /x2robot_data/zhengwei/10093/20250720-day-transfer_green_basket-new_cart_pos
+- path: /x2robot_data/zhengwei/10082/20250720-night-transfer_green_basket-new_cant_pos
+- path: /x2robot_data/zhengwei/10093/20250720-night-transfer_green_basket-new_cart_pos
+- path: /x2robot_data/zhengwei/10106/20250720-night-transfer_green_basket-new_cart_pos
+- path: /x2robot_data/zhengwei/10104/20250720-night-transfer_green_basket-new-cart-pos
+- path: /x2robot_data/zhengwei/10080/20250720-night-transfer_green_basket-new_cart_pos
+- path: /x2robot_data/zhengwei/factory10016/20250721-night-transfer_green_basket-new-cart-pos
+- path: /x2robot_data/zhengwei/10082/20250721-day-transfer_green_basket-new_cart_pos
+- path: /x2robot_data/zhengwei/10093/20250721-day-transfer_green_basket-new_cart_pos
+- path: /x2robot_data/zhengwei/10093/20250721-day-transfer_green_basket-new_cart_pos-1
+- path: /x2robot_data/zhengwei/10093/20250721-night-transfer_green_basket-new_cart_pos
+- path: /x2robot_data/zhengwei/10082/20250721-night-transfer_green_basket-new_cart_pos
+- path: /x2robot_data/zhengwei/factory10016/20250722-night-transfer_green_basket-new-cart-pos
+- path: /x2robot_data/zhengwei/10082/20250722-day-transfer_green_basket-new_cart_pos
+- path: /x2robot_data/zhengwei/factory10016/20250720-night-transfer_green_basket-new-cart-pos
+- path: /x2robot_data/zhengwei/10080/20250719-night-transfer_green_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/10106/20250719-night-transfer_green_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/10082/20250719-night-transfer_green_basket-new_cant_pos
+- path: /x2robot_data/zhengwei/10082/20250719-night-transfer_green_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/10082/20250719-day-transfer_green_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/factory10016/20250719-night-transfer_green_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/10106/20250718-night-transfer_green_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/10080/20250718-night-transfer_green_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/10082/20250718-night-transfer_green_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/10082/20250718-day-transfer_green_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/factory10016/20250718-night-transfer_green_basket-no_moving_cart
+- path: /x2robot_data/zhengwei/factory10016/20250717-day-transfer_green_basket
+- path: /x2robot_data/zhengwei/10082/20250717-day-transfer_green_basket-disturb
+- path: /x2robot_data/zhengwei/10082/20250716-night-transfer_green_basket-disturb
+- path: /x2robot_data/zhengwei/factory10016/20250716-day-transfer_green_basket
+- path: /x2robot_data/zhengwei/10080/20250716-day-transfer_green_basket
+- path: /x2robot_data/zhengwei/10104/20250716-day-transfer_green_basket
+- path: /x2robot_data/zhengwei/10082/20250716-day-transfer_green_basket-disturb
+- path: /x2robot_data/zhengwei/10080/20250715-night-transfer_green_basket
+- path: /x2robot_data/zhengwei/10104/20250715-night-transfer_green_basket
+- path: /x2robot_data/zhengwei/10082/20250715-night-transfer_green_basket-disturb
+
+# transfer_color_sort_box
+- path: /x2robot_data/zhengwei/10087/20250720-night-transfer_color_sort_box-new_cart_pos
+- path: /x2robot_data/zhengwei/factory10016/20250720-day-transfer_color_sort_box-new_cart_pos
+- path: /x2robot_data/zhengwei/10106/20250720-day-transfer_color_sort_box-new_cart_pos
+- path: /x2robot_data/zhengwei/10080/20250720-day-transfer_color_sort_box-nwe_cart_pos
+- path: /x2robot_data/zhengwei/10087/20250720-day-transfer_color_sort_box-new_cart_pos
+- path: /x2robot_data/zhengwei/10087/20250721-day-transfer_color_sort_box-new_cart_pos
+- path: /x2robot_data/zhengwei/factory10016/20250721-day-transfer_color_sort_box-new_cart_pos
+- path: /x2robot_data/zhengwei/10106/20250721-day-transfer_color_sort_box
+- path: /x2robot_data/zhengwei/10087/20250721-day-transfer_color_sort_box-new_cart_pos-1
+- path: /x2robot_data/zhengwei/10087/20250721-night-transfer_color_sort_box-new-cart-pos
+- path: /x2robot_data/zhengwei/10106/20250722-day-transfer_color_sort_box-new_cart_pos
+- path: /x2robot_data/zhengwei/10087/20250722-day-transfer_color_sort_box-new_cart_pos
+- path: /x2robot_data/zhengwei/10087/20250719-night-transfer_color_sort_box-new_cart_pos
+- path: /x2robot_data/zhengwei/10087/20250719-night-transfer_color_sort_box-no_moving-cart
+- path: /x2robot_data/zhengwei/10080/20250719-day-transfer_color_sort_box
+- path: /x2robot_data/zhengwei/10087/20250719-day-transfer_color_sort_box-no_moving-cart
+- path: /x2robot_data/zhengwei/factory10016/20250719-day-transfer_color_sort_box
+- path: /x2robot_data/zhengwei/10087/20250718-night-transfer_color_sort_box-no_moving-cart
+- path: /x2robot_data/zhengwei/10080/20250718-day-transfer_color_sort_box-1
+- path: /x2robot_data/zhengwei/10080/20250718-day-transfer_color_sort_box
+- path: /x2robot_data/zhengwei/factory10016/20250718-day-transfer_color_sort_box
+- path: /x2robot_data/zhengwei/10106/20250718-day-transfer_color_sort_box
+- path: /x2robot_data/zhengwei/10087/20250718-day-transfer_color_sort_box-no_moving-cart
+- path: /x2robot_data/zhengwei/10080/20250717-day-transfer_color_sort_box
+- path: /x2robot_data/zhengwei/factory10016/20250717-day-transfer_color_sort_box
+- path: /x2robot_data/zhengwei/10087/20250717-day-transfer_color_sort_box-disturb
+- path: /x2robot_data/zhengwei/10087/20250716-night-transfer_color_sort_box-disturb
+- path: /x2robot_data/zhengwei/factory10016/20250716-day-transfer_color_sort_box
+- path: /x2robot_data/zhengwei/10080/20250716-day-transfer_color_sort_box
+- path: /x2robot_data/zhengwei/10104/20250716-day-transfer_color_sort_box
+- path: /x2robot_data/zhengwei/10094/20250716-day-transfer_color_sort_box
+- path: /x2robot_data/zhengwei/10087/20250716-day-transfer_color_sort_box-disturb
+- path: /x2robot_data/zhengwei/10104/20250715-night-transfer_color_sort_box
+
+# # Get Badge
+- path: /x2robot_data/zhengwei/10086/20250722-day-Get_badge_from_shelf
+- path: /x2robot_data/zhengwei/10079/20250722-day-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10094/20250722-day-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10086/20250721-night-10051-Get_badge_from_shelf_new-infer
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10088/20250721-night-10051-Get_badge_from_shelf_new-infer
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10088/20250721-night-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10086/20250721-night-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10081/20250721-night-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10088/20250721-day-Get_badge_from_shelf_new-1
+- path: /x2robot_data/zhengwei/10079/20250721-day-10051-Get_badge_from_shelf_new-infer
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10086/20250721-day-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10088/20250721-day-10052-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10081/20250721-day-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10086/20250720-night-10051-Get_badge_from_shelf_new-infer-1
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10086/20250720-night-10051-Get_badge_from_shelf_new-infer
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10103/20250720-day-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10086/20250720-day-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10094/20250719-night-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10079/20250719-day-Get_badge_from_shelf_new-3
+- path: /x2robot_data/zhengwei/10094/20250719-day-Get_badge_from_shelf_new-1
+- path: /x2robot_data/zhengwei/10079/20250719-day-Get_badge_from_shelf_new-2
+- path: /x2robot_data/zhengwei/10094/20250719-day-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10088/20250718-night-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10088/20250718-day-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10086/20250717-night-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10081/20250717-night-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10086/20250717-day-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10094/20250716-night-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10079/20250716-night-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10094/20250716-day-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10088/20250716-day-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10079/20250716-day-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10086/20250715-night-Get_badge_from_shelf_new
+- path: /x2robot_data/zhengwei/10086/20250715-day-Get_badge_from_shelf
+- path: /x2robot_data/zhengwei/10094/20250714-night-10051-Get_badge_from_shelf-infer-1
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10104/20250713-day-Get_badge_from_shelf
+- path: /x2robot_data/zhengwei/10094/20250714-day-Get_badge_from_shelf
+- path: /x2robot_data/zhengwei/10086/20250712-day-Get_badge_from_shelf-disturb
+- path: /x2robot_data/zhengwei/10094/20250711-day-Get_badge_from_shelf
+- path: /x2robot_data/zhengwei/10104/20250710-day-Get_badge_from_shelf
+- path: /x2robot_data/zhengwei/10086/20250709-day-Get_badge_from_shelf
+- path: /x2robot_data/zhengwei/10094/20250708-night-Get_badge_from_shelf
+- path: /x2robot_data/zhengwei/10094/20250708-day-Get_badge_from_shelf
+- path: /x2robot_data/zhengwei/10104/20250707-day-Get_badge_from_shelf-2
+- path: /x2robot_data/zhengwei/10086/20250706-day-Get_badge_from_shelf
+- path: /x2robot_data/zhengwei/10094/20250705-day-Get_badge_from_shelf
+- path: /x2robot_data/zhengwei/10094/20250703-day-Get_badge_from_shelf
+
+# Get_bag_from_shelf
+- path: /x2robot_data/zhengwei/10088/20250720-day-Get_bag_from_shelf_new
+- path: /x2robot_data/zhengwei/10081/20250720-day-Get_bag_from_shelf_new
+- path: /x2robot_data/zhengwei/10081/20250720-night-Get_bag_from_shelf_new
+- path: /x2robot_data/zhengwei/10088/20250720-night-10052-Get_bag_from_shelf_new
+- path: /x2robot_data/zhengwei/10088/20250720-night-10052-Get_bag_from_shelf_new-infer-1
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10088/20250720-night-10052-Get_bag_from_shelf_new-infer--1
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10081/20250720-night-10052-Get_bag_from_shelf_new-infer
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10079/20250721-day-Get_bag_from_shelf_new
+- path: /x2robot_data/zhengwei/10094/20250721-day-Get_bag_from_shelf_new
+- path: /x2robot_data/zhengwei/10079/20250721-night-Get_bag_from_shelf_new
+- path: /x2robot_data/zhengwei/10094/20250721-night-Get_bag_from_shelf
+- path: /x2robot_data/zhengwei/10079/20250721-night-10052-Get_bag_from_shelf_new-infer
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10094/20250721-night-10052-Get_bag_from_shelf_new-infer-1
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10081/20250719-night-Get_bag_from_shelf_new-1
+- path: /x2robot_data/zhengwei/10086/20250719-night-Get_bag_from_shelf_new
+- path: /x2robot_data/zhengwei/10081/20250719-night-Get_bag_from_shelf_new
+- path: /x2robot_data/zhengwei/10086/20250719-day-Get_bag_from_shelf_new-1
+- path: /x2robot_data/zhengwei/10081/20250719-day-Get_bag_from_shelf_new-1
+- path: /x2robot_data/zhengwei/10081/20250719-day-Get_bag_from_shelf_new
+- path: /x2robot_data/zhengwei/10086/20250719-day-Get_bag_from_shelf_new
+- path: /x2robot_data/zhengwei/10079/20250718-night-Get_bag_from_shelf_new
+- path: /x2robot_data/zhengwei/10094/20250718-night-Get_bag_from_shelf_new
+- path: /x2robot_data/zhengwei/10094/20250718-day-Get_bag_from_shelf_new
+- path: /x2robot_data/zhengwei/10079/20250718-day-Get_bag_from_shelf_new
+- path: /x2robot_data/zhengwei/10088/20250717-night-Get_bag_from_shelf
+- path: /x2robot_data/zhengwei/10081/20250717-day-Get_bag_from_shelf_new
+- path: /x2robot_data/zhengwei/10105/20250717-day-Get_bag_from_shelf_new
+- path: /x2robot_data/zhengwei/10088/20250717-day-Get_bag_from_shelf_new
+- path: /x2robot_data/zhengwei/10086/20250716-night-Get_bag_from_shelf_new
+- path: /x2robot_data/zhengwei/10086/20250716-day-Get_bag_from_shelf_new
+
+# Get_source_from_shelf
+- path: /x2robot_data/zhengwei/10081/20250722-night-10053-Get_source_from_shelf_new-infer
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10081/20250722-night-10052-Get_source_from_shelf-infer
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10081/20250722-day-Get_source_from_shelf_new
+- path: /x2robot_data/zhengwei/10088/20250722-day-Get_source_from_shelf_new
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10079/20250720-night-10053-Get_source_from_shelf_new-infer-1
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10094/20250720-night-10053-Get_source_from_shelf_new-infer-1
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10079/20250720-night-10053-Get_source_from_shelf_new-infer
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10094/20250720-night-10053-Get_source_from_shelf_new-infer
+- path: /x2robot_data/zhengwei/10079/20250720-night-Get_source_from_shelf_new
+- path: /x2robot_data/zhengwei/10079/20250720-day-Get_source_from_shelf_new-1
+- path: /x2robot_data/zhengwei/10081/20250720-day-Get_source_from_shelf_new
+- path: /x2robot_data/zhengwei/10094/20250720-day-Get_source_from_shelf_new
+- path: /x2robot_data/zhengwei/10088/20250719-night-Get_source_from_shelf_new
+- path: /x2robot_data/zhengwei/10088/20250719-day-Get_source_from_shelf_new-1
+- path: /x2robot_data/zhengwei/10081/20250719-day-Get_source_from_shelf_new
+- path: /x2robot_data/zhengwei/10088/20250719-day-Get_source_from_shelf_new
+- path: /x2robot_data/zhengwei/10086/20250718-night-Get_source_from_shelf_new
+- path: /x2robot_data/zhengwei/10081/20250718-night-Get_source_from_shelf_new
+- path: /x2robot_data/zhengwei/10086/20250718-day-Get_source_from_shelf_new
+- path: /x2robot_data/zhengwei/10081/20250718-day-Get_source_from_shelf_new
+- path: /x2robot_data/zhengwei/10088/20250718-night-Get_source_from_shelf_new
+- path: /x2robot_data/zhengwei/10094/20250717-night-Get_source_from_shelf_new
+- path: /x2robot_data/zhengwei/10079/20250717-night-Get_source_from_shelf_new
+- path: /x2robot_data/zhengwei/10081/20250717-day-10053-Get_source_from_shelf_new-infer
+  use_takeover_only: True
+- path: /x2robot_data/zhengwei/10094/20250717-day-Get_source_from_shelf_new
+- path: /x2robot_data/zhengwei/10086/20250717-day-Get_source_from_shelf_new
+- path: /x2robot_data/zhengwei/10079/20250717-day-Get_source_from_shelf_new-1
+- path: /x2robot_data/zhengwei/10088/20250716-night-Get_source_from_shelf_new
+- path: /x2robot_data/zhengwei/10088/20250716-day-Get_source_from_shelf_new-1
+- path: /x2robot_data/zhengwei/10079/20250715-night-Get_source_from_shelf_new
+- path: /x2robot_data/zhengwei/10088/20250715-night-Get_source_from_shelf_new
+- path: /x2robot_data/zhengwei/10088/20250715-day-Get_source_from_shelf
+
+
+shape_meta: &shape_meta
+  obs:
+    face_view:
+      shape: ${task.image_shape}
+      horizon: ${task.img_obs_horizon}
+      type: rgb
+      camera_name: faceImg
+    left_wrist_view:
+      shape: ${task.image_shape}
+      horizon: ${task.img_obs_horizon}
+      type: rgb
+      camera_name: leftImg
+    right_wrist_view:
+      shape: ${task.image_shape}
+      horizon: ${task.img_obs_horizon}
+      type: rgb
+      camera_name: rightImg
+    agent_pos:
+      shape: [22] # 14 + 14
+      horizon: ${eval:'${task.low_dim_obs_horizon} + ${task.action_history_length}'}
+      type: low_dim
+  action:
+    shape: [20]
+    horizon: ${task.action_horizon}
+    type: low_dim
+
+dataset:
+  dataset_paths: ${task.dataset_path}
+  # seed: 42
+  cache_dir: /x2robot_v2/xinyuanfang/.cache/dataset_cache
+  is_bi_mode: True
+  repeat_num: 1
+  train_val_split: 0.99
+  # sample_ratio: [1.0, 1.0]
+  save_meta_data: True
+  force_overwrite: False

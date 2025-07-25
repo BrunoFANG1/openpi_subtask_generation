@@ -365,6 +365,7 @@ def main(cfg):
     ignore_prediction_keys = default(cfg, 'task.ignore_prediction_keys', [])
     detect_motion = default(cfg, 'task.detect_motion', True)
     custon_normalization_path = default(cfg, 'task.custon_normalization_path', None)
+    distributed_instruction_ratio = default(cfg, 'task.distributed_instruction_ratio', 1.0)
 
     # configure dataset
     data_config = X2RDataProcessingConfig()
@@ -386,7 +387,7 @@ def main(cfg):
         use_custom_action_data_path=use_custom_action_data_path,
         global_action_data_base_path=global_action_data_base_path,
         ignore_prediction_keys=ignore_prediction_keys,
-        distributed_instruction_ratio=1.0,
+        distributed_instruction_ratio=distributed_instruction_ratio,
         custon_normalization_path=custon_normalization_path,
     )
 
@@ -445,7 +446,7 @@ def main(cfg):
         rank=jax.process_index(),
         world_size=jax.process_count(),
         batch_size=batch_size,
-        # buffer_size=300,
+        buffer_size=300,
         device='jax',
     )
     train_num = dataset.global_train_iters.value
@@ -520,7 +521,7 @@ def main(cfg):
     logging.info(f"Initialized train state:\n{training_utils.array_tree_to_info(train_state.params)}")
 
     if resuming:
-        train_state = _checkpoints.restore_state(checkpoint_manager, train_state)
+        train_state = _checkpoints.restore_state(checkpoint_manager, train_state, mesh=mesh)
         logging.info(f"Restored train state: from {checkpoint_manager.directory}")
         # assert False, "debug line 5" # TODO: Test resume train
 

@@ -413,14 +413,17 @@ def main(cfg):
     if custon_normalization_path is not None:
         with open(custon_normalization_path, 'r') as f:
             import json
-            norm_stats = json.load(f)
-            norm_stats['low_quantile'] = np.array(norm_stats['low_quantile'])
-            norm_stats['high_quantile'] = np.array(norm_stats['high_quantile'])
-
-    norm_stats['action_mean'] = np.array(predict_action_min)
-    norm_stats['action_std'] = np.array(predict_action_max) - np.array(predict_action_min)
-    norm_stats['state_mean'] = np.array(agent_pos_min)
-    norm_stats['state_std'] = np.array(agent_pos_max) - np.array(agent_pos_min)
+            custom_norm_stats = json.load(f)
+        norm_stats['action_mean'] = np.array(custom_norm_stats['norm_stats']['action']['mean'])
+        norm_stats['action_std'] = np.array(custom_norm_stats['norm_stats']['action']['std'])
+        norm_stats['state_mean'] = np.array(custom_norm_stats['norm_stats']['agent_pos']['mean'])
+        norm_stats['state_std'] = np.array(custom_norm_stats['norm_stats']['agent_pos']['std'])
+        print(f"Using custom normalization stats from {custon_normalization_path}")
+    else:
+        norm_stats['action_mean'] = np.array(predict_action_min)
+        norm_stats['action_std'] = np.array(predict_action_max) - np.array(predict_action_min)
+        norm_stats['state_mean'] = np.array(agent_pos_min)
+        norm_stats['state_std'] = np.array(agent_pos_max) - np.array(agent_pos_min)
     data_config.update(
         norm_stats=norm_stats,
     )
@@ -446,7 +449,7 @@ def main(cfg):
         rank=jax.process_index(),
         world_size=jax.process_count(),
         batch_size=batch_size,
-        buffer_size=300,
+        buffer_size=1000,
         device='jax',
     )
     train_num = dataset.global_train_iters.value

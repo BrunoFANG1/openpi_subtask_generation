@@ -375,7 +375,8 @@ def main(cfg):
                     batch = next(data_iter)
                 except:
                     # If dataset is exhausted, reinitilize the dataloader
-                    dataset, train_dataloader, val_dataloader = _data_loader.create_x2robot_dataloader(cfg)
+                    # dataset, train_dataloader, val_dataloader = _data_loader.create_x2robot_dataloader(cfg)
+                    train_dataloader = dataset.create_train_dataloader()
                     train_dataloader.data_sharding = data_sharding
                     val_dataloader.data_sharding = data_sharding # TODO: find more elegant way
                     epoch += 1

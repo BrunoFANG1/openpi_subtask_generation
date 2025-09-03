@@ -52,3 +52,24 @@ def test_download_fsspec():
 
     new_local_path = download.maybe_download(remote_path, gs={"token": "anon"})
     assert new_local_path == local_path
+
+def test_download_pi0_fast():
+    remote_path = "s3://openpi-assets/checkpoints/pi0_fast_base/params"
+
+    local_path = download.maybe_download(remote_path, gs={"token": "anon"})
+    assert local_path.exists()
+
+def test_download_paligemma():
+    remote_path = "gs://vertex-model-garden-paligemma-us/paligemma/pt_224.npz"
+
+    local_path = download.maybe_download(remote_path, gs={"token": "anon"})
+    assert local_path.exists()
+
+if __name__ == "__main__":
+    # 自动下载太慢了，换香港专线下载
+    import os
+    os.environ["HTTP_PROXY"] = "http://10.7.145.219:3128"
+    os.environ["HTTPS_PROXY"] = "http://10.7.145.219:3128"
+    os.environ["OPENPI_DATA_HOME"] = "/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/test_data"
+    test_download_pi0_fast()
+    print("Finished")

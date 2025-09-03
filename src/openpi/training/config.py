@@ -630,7 +630,53 @@ _CONFIGS = [
         num_train_steps=30_000,
     ),
     TrainConfig(
-        name="left_pi0",
+        name="left_pi0_20",
+        exp_name="debug_test",
+        model=pi0.Pi0Config(action_horizon=20),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
+        data=LeRobotX2robotDataConfig(
+            repo_id="pi0_distribute_package",
+            base_config=DataConfig(
+            asset_id="pi0_distribute_package",
+            local_files_only=True,
+            ),
+            default_prompt="",
+        ),
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=3000,
+            peak_lr=2.5e-5,
+            decay_steps=150_000,
+            decay_lr=2.5e-6,
+        ),
+        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
+        # Check the base TrainConfig class for a full list of available hyperparameters.
+        num_train_steps=30_000,
+    ),
+    TrainConfig(
+        name="left_pi0_paligemma_20",
+        exp_name="debug_test",
+        model=pi0.Pi0Config(action_horizon=20),
+        weight_loader=weight_loaders.PaliGemmaWeightLoader(),
+        data=LeRobotX2robotDataConfig(
+            repo_id="pi0_distribute_package",
+            base_config=DataConfig(
+            asset_id="pi0_distribute_package",
+            local_files_only=True,
+            ),
+            default_prompt="",
+        ),
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=3000,
+            peak_lr=2.5e-5,
+            decay_steps=150_000,
+            decay_lr=2.5e-6,
+        ),
+        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
+        # Check the base TrainConfig class for a full list of available hyperparameters.
+        num_train_steps=30_000,
+    ),
+    TrainConfig(
+        name="left_pi0_30",
         exp_name="debug_test",
         model=pi0.Pi0Config(action_horizon=30),
         weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
@@ -677,6 +723,52 @@ _CONFIGS = [
     ),
     TrainConfig(
         name="left_pi0_sort_mix",
+        exp_name="debug_test",
+        model=pi0.Pi0Config(action_horizon=20),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
+        data=LeRobotX2robotMoveDataConfig(
+            repo_id="pi0_distribute_package",
+            base_config=DataConfig(
+            asset_id="pi0_distribute_package",
+            local_files_only=True,
+            ),
+            # default_prompt="",
+        ),
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=3000,
+            peak_lr=2.5e-5,
+            decay_steps=150_000,
+            decay_lr=2.5e-6,
+        ),
+        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
+        # Check the base TrainConfig class for a full list of available hyperparameters.
+        num_train_steps=30_000,
+    ),
+    TrainConfig(
+        name="left_pi0_move_data_20",
+        exp_name="debug_test",
+        model=pi0.Pi0Config(action_horizon=20),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
+        data=LeRobotX2robotMoveDataConfig(
+            repo_id="pi0_distribute_package",
+            base_config=DataConfig(
+            asset_id="pi0_distribute_package",
+            local_files_only=True,
+            ),
+            # default_prompt="",
+        ),
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=3000,
+            peak_lr=2.5e-5,
+            decay_steps=150_000,
+            decay_lr=2.5e-6,
+        ),
+        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
+        # Check the base TrainConfig class for a full list of available hyperparameters.
+        num_train_steps=30_000,
+    ),
+    TrainConfig(
+        name="left_pi0_move_data_30",
         exp_name="debug_test",
         model=pi0.Pi0Config(action_horizon=30),
         weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),

@@ -243,7 +243,7 @@ class Pi0(_model.BaseModel):
 
     @override
     def compute_loss(
-        self, rng: at.KeyArrayLike, observation: _model.Observation, actions: _model.Actions, *, train: bool = False
+        self, rng: at.KeyArrayLike, observation: _model.Observation, actions: _model.Actions, *, real_action_dim: int=32, train: bool = False
     ) -> at.Float[at.Array, "*b ah"]:
         preprocess_rng, noise_rng, time_rng = jax.random.split(rng, 3)
         observation = _model.preprocess_observation(preprocess_rng, observation, train=train, image_keys=list(observation.images.keys())) # Support custom image keys
@@ -268,7 +268,7 @@ class Pi0(_model.BaseModel):
         )
         v_t = self.action_out_proj(suffix_out[:, -self.action_horizon :])
 
-        return jnp.mean(jnp.square(v_t - u_t), axis=-1)
+        return jnp.mean(jnp.square(v_t[:, :, :real_action_dim] - u_t[:, :, :real_action_dim]), axis=-1)
 
     @override
     def sample_actions(
@@ -371,7 +371,7 @@ class Pi0(_model.BaseModel):
         batch_size = observation.state.shape[0]
         noise = jax.random.normal(rng, (batch_size, self.action_horizon, self.action_dim))
         
-        # Add a batch dim to prefix_actions # e.g. (30, 14) -> (1, 30, 32)
+        # Add a batch dim to prefix_actions and pad extra action_dims # e.g. (30, 14) -> (1, 30, 32)
         prefix_actions = prefix_actions[None, ...]
         prefix_actions = jnp.concatenate([prefix_actions, jnp.zeros((batch_size, self.action_horizon, self.action_dim-prefix_actions.shape[-1]))], axis=2)
 
@@ -466,7 +466,7 @@ class Pi0(_model.BaseModel):
             (prefix_out, suffix_out), _ = self.PaliGemma.llm(
                 [None, suffix_tokens], mask=full_attn_mask, positions=positions, kv_cache=kv_cache
             )
-            assert prefix_out is None
+            # assert prefix_out is None
             v_t = self.action_out_proj(suffix_out[:, -self.action_horizon :])
 
             return v_t[0, ...] # TODO: remove this since it's not super vectorized
@@ -474,6 +474,7 @@ class Pi0(_model.BaseModel):
         def rtc_step(carry):
             x_t, time = carry
             guided_vt = pinv_corrected_velocity(v_t_step, x_t, time, prefix_actions, inference_delay, prefix_attention_horizon, max_guidance_weight)
+            # jax.debug.breakpoint()
             return x_t + dt * guided_vt, time + dt
 
         def cond(carry):
@@ -482,6 +483,7 @@ class Pi0(_model.BaseModel):
             return time >= -dt / 2
 
         x_0, _ = jax.lax.while_loop(cond, rtc_step, (noise, 1.0))
+        # jax.debug.breakpoint()
         return x_0
 
     def step(self, observation, x_t, time, prefix_mask, prefix_tokens, kv_cache):

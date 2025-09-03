@@ -2,7 +2,10 @@ import os
 os.environ["HF_LEROBOT_HOME"] = "/x2robot_v2/xinyuanfang/projects_v2/.cache/lerobot"
 # os.environ['CUDA_VISIBLE_DEVICES'] = '6,7'
 os.environ['OPENPI_DATA_HOME'] = '/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi'
-
+os.environ['XLA_FLAGS'] = (
+    '--xla_gpu_triton_gemm_any=True '
+    '--xla_gpu_enable_latency_hiding_scheduler=true '
+)
 MASTER_ADDR = os.environ.get("MASTER_ADDR", None)
 MASTER_PORT = os.environ.get("MASTER_PORT", None)
 
@@ -95,29 +98,6 @@ def init_logging(debug=False):
         for handler in logging.getLogger().handlers[:]:
             if not isinstance(handler, logging.NullHandler):
                 logging.getLogger().removeHandler(handler)
-
-def convert_per_process_batch_to_jax(data_dict, data_sharding):
-    """Convert NumPy arrays to JAX arrays and create distributed arrays."""
-    # Define a function to convert arrays to distributed arrays
-    def create_distributed_array(x):
-        if isinstance(x, (np.ndarray, jnp.ndarray, jax.Array)):
-            if jax.process_count() > 1:
-                return jax.make_array_from_process_local_data(
-                    sharding=data_sharding,
-                    local_data=x
-                )
-            elif jax.process_count() == 1:
-                return jax.device_put(x, data_sharding)
-        elif isinstance(x, dict):
-            logging.info(f"Converting dict to distributed arrays of keys: {x.keys()}")
-            return {k: create_distributed_array(v) for k, v in x.items()}
-        elif isinstance(x, list):
-            return [create_distributed_array(v) for v in x]
-        else:
-            return x
-    
-    # Convert all arrays to distributed arrays
-    return jax.tree.map(create_distributed_array, data_dict)
 
 
 def init_wandb(config: _config.TrainConfig, *, resuming: bool, log_code: bool = False, enabled: bool = True):
@@ -213,6 +193,7 @@ def train_step(
     rng: at.KeyArrayLike,
     state: training_utils.TrainState,
     batch: tuple[_model.Observation, _model.Actions],
+    real_action_dim: int,
 ) -> tuple[training_utils.TrainState, dict[str, at.Array]]:
     model = nnx.merge(state.model_def, state.params)
     model.train()
@@ -221,7 +202,7 @@ def train_step(
     def loss_fn(
         model: _model.BaseModel, rng: at.KeyArrayLike, observation: _model.Observation, actions: _model.Actions
     ):
-        chunked_loss = model.compute_loss(rng, observation, actions, train=True)
+        chunked_loss = model.compute_loss(rng, observation, actions, real_action_dim=real_action_dim, train=True)
         return jnp.mean(chunked_loss)
 
     train_rng = jax.random.fold_in(rng, state.step)
@@ -303,179 +284,11 @@ def main(cfg):
     if MASTER_PORT:
         os.environ['MASTER_PORT'] = MASTER_PORT
     os.environ['GLOO_SOCKET_IFNAME'] = 'eth0'
-    init_logging()
+
+    init_logging(cfg.training.debug)
     logging.info(f"Running on: {platform.node()}")
 
     jax.config.update("jax_compilation_cache_dir", str(epath.Path("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/jax").expanduser()))
-
-    # Create dataloader
-    train_test_split = default(cfg, "task.dataset.train_val_split", 0.9)
-
-    # configure dataset
-    horizon = default(cfg, "task.action_horizon", 20)
-    action_history_length = default(cfg, "task.action_history_length", 0)
-    image_history_length = default(cfg, "task.image_history_length", 0)
-    trim_stationary = default(cfg, 'task.trim_stationary', False) # 是否去除静止动作
-    filter_angle_outliers = default(cfg, "task.filter_angle_outliers", True)  # 是否过滤角度异常值, 默认要过滤
-    sample_rate = default(cfg, "task.dataset.sample_rate", 1.0)  # 针对action和image的采样率
-    cache_dir = default(cfg, "task.dataset.cache_dir", "/x2robot_v2/Data/.cache/dataset_cache")  # 数据集根目录
-    dataset_config_path = default(cfg, "task.task_config_path", None)  # 数据集配置文件路径
-    assert dataset_config_path is not None, f"dataset_config_path is None, please check your config file"
-    
-    default_instruction = default(cfg, 'task.dataset.instruction', '')
-    instruction_path = default(cfg, 'task.dataset.instruction_path', None)
-    instruction_key = default(cfg, 'task.dataset.instruction_key', None)
-    one_by_one_relative = default(cfg, 'task.dataset.one_by_one_relative', False)
-    
-    print(f"instruction_key配置: {instruction_key}")
-    print(f"instruction_path配置: {instruction_path}")
-    
-    batch_size = cfg.train_dataloader.batch_size
-
-    # 从shape_meta中构建cam_mapping - 配置化方式
-    # camera_name -> obs_key
-    cam_mapping = {}
-    obs_shape_meta = cfg.task.shape_meta["obs"]
-    
-    for key, attr in obs_shape_meta.items():
-        obs_type = attr.get("type", "low_dim")
-        if obs_type == "rgb":
-            camera_name = attr.get("camera_name", None)
-            if camera_name is not None:
-                cam_mapping[camera_name] = key
-                print(f"Added cam mapping: {camera_name} -> {key}")
-            else:
-                print(f"Warning: RGB observation {key} missing camera_name")
-
-    
-    print(f"Final cam_mapping: {cam_mapping}")
-    merge_cur_history = action_history_length > 0  # agent_pos里是否加入动作历史
-    merge_image_history = image_history_length > 0  # 观测图像里是否加入图像历史
-
-    # 直接从任务配置中获取action keys
-    predict_action_keys = cfg.task.predict_action_keys
-    obs_action_keys = cfg.task.obs_action_keys
-    
-    # 验证配置
-    assert predict_action_keys is not None, "predict_action_keys must be configured in task config"
-    assert obs_action_keys is not None, "obs_action_keys must be configured in task config"
-
-    use_custom_action_data_path = default(cfg, 'task.use_custom_action_data_path', False)
-    global_action_data_base_path = default(cfg, 'task.global_action_data_base_path', None)
-    ignore_prediction_keys = default(cfg, 'task.ignore_prediction_keys', [])
-    detect_motion = default(cfg, 'task.detect_motion', True)
-    custon_normalization_path = default(cfg, 'task.custon_normalization_path', None)
-    distributed_instruction_ratio = default(cfg, 'task.distributed_instruction_ratio', 1.0)
-
-    # configure dataset
-    data_config = X2RDataProcessingConfig()
-    data_config.update(
-        cam_mapping=cam_mapping,
-        class_type="x2",
-        train_test_split=train_test_split,
-        filter_angle_outliers=filter_angle_outliers,
-        sample_rate=sample_rate,
-        parse_tactile=False,
-        predict_action_keys=predict_action_keys,  # 直接使用配置
-        obs_action_keys=obs_action_keys,          # 直接使用配置
-        trim_stationary=trim_stationary,
-        cache_dir=cache_dir,
-        default_instruction=default_instruction,
-        instruction_path=instruction_path,
-        instruction_key=instruction_key,
-        one_by_one_relative=one_by_one_relative,
-        use_custom_action_data_path=use_custom_action_data_path,
-        global_action_data_base_path=global_action_data_base_path,
-        ignore_prediction_keys=ignore_prediction_keys,
-        distributed_instruction_ratio=distributed_instruction_ratio,
-        custon_normalization_path=custon_normalization_path,
-    )
-
-    # Update norm_stats to data_config
-    #     min_range = np.array([-0.1, -0.5, -0.5, -3.0, -3.0, -3.0 , -9, -0.1, -0.5, -0.5, -3.0, -3.0, -3.0 , -9], dtype=np.float32)
-    #     max_range = np.array([0.5,  0.5,  0.5, 3.0, 3.0, 3.0, 9,0.5,  0.5,  0.5, 3.0, 3.0, 3.0, 9], dtype=np.float32)
-    #     # max_min = [0.6, 1.0, 1.0, 6.0, 6.0, 6.0, 18, 0.6, 1.0, 1.0, 6.0, 6.0, 6.0, 18]
-    #     action_stats = {
-    #         'state_mean': min_range,
-    #         'state_std': max_range - min_range,
-    #         'action_mean': min_range,
-    #         'action_std': max_range - min_range,
-    #     }
-    norm_stats = {}
-    predict_action_min, predict_action_max, agent_pos_min, agent_pos_max = [], [], [], []
-    for key in data_config.predict_action_keys:
-        predict_action_min += ACTION_KEY_RANGES[key]['min_range']
-        predict_action_max += ACTION_KEY_RANGES[key]['max_range']
-    for key in data_config.obs_action_keys:
-        agent_pos_min += ACTION_KEY_RANGES[key]['min_range']
-        agent_pos_max += ACTION_KEY_RANGES[key]['max_range']
-    # TODO: Temp fix
-    if custon_normalization_path is not None:
-        with open(custon_normalization_path, 'r') as f:
-            import json
-            custom_norm_stats = json.load(f)
-        norm_stats['action_mean'] = np.array(custom_norm_stats['norm_stats']['action']['mean'])
-        norm_stats['action_std'] = np.array(custom_norm_stats['norm_stats']['action']['std'])
-        norm_stats['state_mean'] = np.array(custom_norm_stats['norm_stats']['agent_pos']['mean'])
-        norm_stats['state_std'] = np.array(custom_norm_stats['norm_stats']['agent_pos']['std'])
-        print(f"Using custom normalization stats from {custon_normalization_path}")
-    else:
-        norm_stats['action_mean'] = np.array(predict_action_min)
-        norm_stats['action_std'] = np.array(predict_action_max) - np.array(predict_action_min)
-        norm_stats['state_mean'] = np.array(agent_pos_min)
-        norm_stats['state_std'] = np.array(agent_pos_max) - np.array(agent_pos_min)
-    data_config.update(
-        norm_stats=norm_stats,
-    )
-
-    # TODO: Add extra action dims. e.g. 6D + relative action = 20
-
-    data_chunk_config = X2RDataChunkConfig().update(
-        left_padding=True if action_history_length > 0 else False,
-        right_padding=True,
-        predict_action_keys=predict_action_keys,
-        action_horizon=horizon,
-        obs_action_keys=obs_action_keys,
-        action_history_length=action_history_length,
-        image_history_length=image_history_length,
-        merge_cur_history=merge_cur_history,
-        merge_image_history=merge_image_history,
-    )
-    
-    dataset = DynamicRobotDataset(
-        dataset_config_path=dataset_config_path,
-        data_config=data_config,
-        data_chunk_config=data_chunk_config,
-        rank=jax.process_index(),
-        world_size=jax.process_count(),
-        batch_size=batch_size,
-        buffer_size=1000,
-        device='jax',
-    )
-    train_num = dataset.global_train_iters.value
-    val_num = dataset.global_val_iters.value
-    total_frames = train_num * batch_size * jax.process_count()
-    total_frames_val = val_num * batch_size * jax.process_count()
-    # 计算train/val step
-    global_batch_size = batch_size * jax.process_count()
-    print(
-        f"rank {jax.process_index()} total_frames:{total_frames} total_frames_val:{total_frames_val} train_num {train_num}, val_num {val_num}",
-        flush=True,
-    )
-    print(f"rank {jax.process_index} batch_size_per_rank {batch_size} global_batch_size {global_batch_size}", flush=True)
-    
-    # set wall for jax distributed process
-    if jax.process_count() > 1:
-        # Synchronize all processes to ensure dataset is properly initialized across all ranks
-        from jax.experimental import multihost_utils
-        multihost_utils.sync_global_devices("Dataset initialization complete")
-        print(f"rank {jax.process_index()}: All processes synchronized after dataset initialization", flush=True)
-    
-    train_dataloader = dataset.get_train_dataloader()
-    # iterator = iter(train_dataloader)
-    # data = next(iterator)
-    # assert False, f"data: {data[0].keys()}"
-
 
     rng = jax.random.key(cfg.training.seed)
     train_rng, init_rng = jax.random.split(rng)
@@ -484,6 +297,11 @@ def main(cfg):
     mesh = sharding.make_mesh(cfg.training.fsdp_devices)
     data_sharding = jax.sharding.NamedSharding(mesh, jax.sharding.PartitionSpec(sharding.DATA_AXIS))
     replicated_sharding = jax.sharding.NamedSharding(mesh, jax.sharding.PartitionSpec())
+
+    # Create dataloader
+    dataset, train_dataloader, val_dataloader = _data_loader.create_x2robot_dataloader(cfg)
+    train_dataloader.data_sharding = data_sharding
+    val_dataloader.data_sharding = data_sharding # TODO: find more elegant way
 
     # Ensure checkpoint directory exists before initializing checkpoint manager
     checkpoint_dir = config.checkpoint_dir
@@ -507,15 +325,7 @@ def main(cfg):
     data_iter = iter(train_dataloader)
     logging.info(f"debug line 2")
     
-    per_process_batch = next(data_iter)
-    logging.info(f"debug line 3")
-    per_process_batch[0] = convert_per_process_batch_to_jax(per_process_batch[0], data_sharding) # on cpu
-    per_process_batch[1] = convert_per_process_batch_to_jax(per_process_batch[1], data_sharding) # on cpu
-    # logging.info(f"Initialized before:\n{training_utils.array_tree_to_info(per_process_batch)}")
-    logging.info(f"debug line 4")
-    batch = Observation.from_dict(per_process_batch[0]), per_process_batch[1]
-    local_shape = per_process_batch[1].sharding.shard_shape(per_process_batch[1].shape)
-    logging.info(f"Local shape: {local_shape}")
+    batch = next(data_iter)
     logging.info(f"Initialized data loader:\n{training_utils.array_tree_to_info(batch)}")
     # assert False
 
@@ -530,7 +340,7 @@ def main(cfg):
 
     logging.info(f"Jit compiling train_step")
     ptrain_step = jax.jit(
-        functools.partial(train_step, config),
+        functools.partial(train_step, config, real_action_dim=cfg.task.shape_meta.action.shape[0]),
         in_shardings=(replicated_sharding, train_state_sharding, data_sharding),
         out_shardings=(train_state_sharding, replicated_sharding),
         donate_argnums=(1,),
@@ -549,17 +359,12 @@ def main(cfg):
     try:
         for step in pbar:
             with sharding.set_mesh(mesh):
-                try:
-                    train_state, info = ptrain_step(train_rng, train_state, batch)
-                except Exception as e:
-                    import traceback
-                    full_traceback = traceback.format_exc()
-                    logging.error(f"Error in training step: {e}\n{full_traceback}")
-                    raise  # This will cause process to exit with error
+                train_state, info = ptrain_step(train_rng, train_state, batch)
                 infos.append(info)
                 if step % config.log_interval == 0:
                     stacked_infos = common_utils.stack_forest(infos)
                     reduced_info = jax.device_get(jax.tree.map(jnp.mean, stacked_infos))
+                    epoch_percentage = step / dataset.global_train_iters.value
                     info_str = ", ".join(f"{k}={v:.4f}" for k, v in reduced_info.items())
                     pbar.write(f"Step {step}: {info_str}")
                     if jax.process_index() == 0:
@@ -567,18 +372,18 @@ def main(cfg):
                     infos = []
                 
                 try:
-                    per_process_batch = next(data_iter)
+                    batch = next(data_iter)
                 except:
                     # If dataset is exhausted, reinitilize the dataloader
-                    train_dataloader = dataset.get_train_dataloader()
+                    dataset, train_dataloader, val_dataloader = _data_loader.create_x2robot_dataloader(cfg)
+                    train_dataloader.data_sharding = data_sharding
+                    val_dataloader.data_sharding = data_sharding # TODO: find more elegant way
+                    epoch += 1
                     data_iter = iter(train_dataloader)
-                    per_process_batch = next(data_iter)
-                per_process_batch[0] = convert_per_process_batch_to_jax(per_process_batch[0], data_sharding) # on cpu
-                per_process_batch[1] = convert_per_process_batch_to_jax(per_process_batch[1], data_sharding) # on cpu
-                batch = Observation.from_dict(per_process_batch[0]), per_process_batch[1]
+                    batch = next(data_iter)
 
                 # Checkpoint saving logic
-                if step % 5000 == 0 and step != 0:
+                if step % cfg.checkpoint.keep_period == 0 and step != 0:
                     # Synchronize all processes before checkpoint saving
                     multihost_utils.sync_global_devices("Before checkpoint saving")
                     logging.info(f"Saving checkpoint at step {step}")

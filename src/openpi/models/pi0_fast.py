@@ -190,7 +190,7 @@ class Pi0FAST(_model.BaseModel):
 
     @override
     def compute_loss(
-        self, rng: at.KeyArrayLike, observation: _model.Observation, actions: _model.Actions, *, train: bool = False
+        self, rng: at.KeyArrayLike, observation: _model.Observation, actions: _model.Actions, *, real_action_dim: int = 14, train: bool = False
     ) -> at.Float[at.Array, "*b ah"]:
         observation = _model.preprocess_observation(
             rng, observation, train=train, image_keys=list(observation.images.keys())

@@ -21,6 +21,7 @@ import jax.numpy as jnp
 # import lerobot.common.datasets.lerobot_dataset as lerobot_dataset
 import numpy as np
 import torch
+import logging
 
 import openpi.models.model as _model
 import openpi.training.config as _config
@@ -193,12 +194,8 @@ def create_data_loader(
 def default(config:OmegaConf, attribute_level:str, default_value):
     return OmegaConf.select(config, attribute_level, default=default_value)
 
-def create_x2robot_dataloader(
-    cfg: dict,
-    jax_process_id: int,
-    collate_type: str = 'chunking',
-) -> DataLoader[list]:
-
+def create_x2robot_dataloader(cfg):
+    # Create dataloader
     train_test_split = default(cfg, "task.dataset.train_val_split", 0.9)
 
     # configure dataset
@@ -208,7 +205,7 @@ def create_x2robot_dataloader(
     trim_stationary = default(cfg, 'task.trim_stationary', False) # 是否去除静止动作
     filter_angle_outliers = default(cfg, "task.filter_angle_outliers", True)  # 是否过滤角度异常值, 默认要过滤
     sample_rate = default(cfg, "task.dataset.sample_rate", 1.0)  # 针对action和image的采样率
-    cache_dir = default(cfg, "task.dataset.cache_dir", "/x2robot/Data/.cache/dataset_cache")  # 数据集根目录
+    cache_dir = default(cfg, "task.dataset.cache_dir", "/x2robot_v2/Data/.cache/dataset_cache")  # 数据集根目录
     dataset_config_path = default(cfg, "task.task_config_path", None)  # 数据集配置文件路径
     assert dataset_config_path is not None, f"dataset_config_path is None, please check your config file"
     
@@ -216,7 +213,8 @@ def create_x2robot_dataloader(
     instruction_path = default(cfg, 'task.dataset.instruction_path', None)
     instruction_key = default(cfg, 'task.dataset.instruction_key', None)
     one_by_one_relative = default(cfg, 'task.dataset.one_by_one_relative', False)
-    
+    model_type = default(cfg, 'model.model_type', None)
+
     print(f"instruction_key配置: {instruction_key}")
     print(f"instruction_path配置: {instruction_path}")
     
@@ -250,6 +248,15 @@ def create_x2robot_dataloader(
     assert predict_action_keys is not None, "predict_action_keys must be configured in task config"
     assert obs_action_keys is not None, "obs_action_keys must be configured in task config"
 
+    use_custom_action_data_path = default(cfg, 'task.use_custom_action_data_path', False)
+    global_action_data_base_path = default(cfg, 'task.global_action_data_base_path', None)
+    ignore_prediction_keys = default(cfg, 'task.ignore_prediction_keys', [])
+    detect_motion = default(cfg, 'task.detect_motion', True)
+    custon_normalization_path = default(cfg, 'task.custon_normalization_path', None)
+    distributed_instruction_ratio = default(cfg, 'task.distributed_instruction_ratio', 1.0)
+    dropout_agent_pos_ratio = default(cfg, 'task.dropout_agent_pos_ratio', 0.0)
+    buffer_size = 1000 if cfg.training.debug else 15000
+
     # configure dataset
     data_config = X2RDataProcessingConfig()
     data_config.update(
@@ -266,19 +273,15 @@ def create_x2robot_dataloader(
         default_instruction=default_instruction,
         instruction_path=instruction_path,
         instruction_key=instruction_key,
-        one_by_one_relative = one_by_one_relative,
+        one_by_one_relative=one_by_one_relative,
+        use_custom_action_data_path=use_custom_action_data_path,
+        global_action_data_base_path=global_action_data_base_path,
+        ignore_prediction_keys=ignore_prediction_keys,
+        distributed_instruction_ratio=distributed_instruction_ratio,
+        custon_normalization_path=custon_normalization_path,
+        dropout_agent_pos_ratio=dropout_agent_pos_ratio,
     )
 
-    # Update norm_stats to data_config
-    #     min_range = np.array([-0.1, -0.5, -0.5, -3.0, -3.0, -3.0 , -9, -0.1, -0.5, -0.5, -3.0, -3.0, -3.0 , -9], dtype=np.float32)
-    #     max_range = np.array([0.5,  0.5,  0.5, 3.0, 3.0, 3.0, 9,0.5,  0.5,  0.5, 3.0, 3.0, 3.0, 9], dtype=np.float32)
-    #     # max_min = [0.6, 1.0, 1.0, 6.0, 6.0, 6.0, 18, 0.6, 1.0, 1.0, 6.0, 6.0, 6.0, 18]
-    #     action_stats = {
-    #         'state_mean': min_range,
-    #         'state_std': max_range - min_range,
-    #         'action_mean': min_range,
-    #         'action_std': max_range - min_range,
-    #     }
     norm_stats = {}
     predict_action_min, predict_action_max, agent_pos_min, agent_pos_max = [], [], [], []
     for key in data_config.predict_action_keys:
@@ -287,10 +290,21 @@ def create_x2robot_dataloader(
     for key in data_config.obs_action_keys:
         agent_pos_min += ACTION_KEY_RANGES[key]['min_range']
         agent_pos_max += ACTION_KEY_RANGES[key]['max_range']
-    norm_stats['action_mean'] = np.array(predict_action_min)
-    norm_stats['action_std'] = np.array(predict_action_max) - np.array(predict_action_min)
-    norm_stats['state_mean'] = np.array(agent_pos_min)
-    norm_stats['state_std'] = np.array(agent_pos_max) - np.array(agent_pos_min)
+    # TODO: Temp fix
+    if custon_normalization_path is not None:
+        with open(custon_normalization_path, 'r') as f:
+            import json
+            custom_norm_stats = json.load(f)
+        norm_stats['action_mean'] = np.array(custom_norm_stats['norm_stats']['action']['mean'])
+        norm_stats['action_std'] = np.array(custom_norm_stats['norm_stats']['action']['std'])
+        norm_stats['state_mean'] = np.array(custom_norm_stats['norm_stats']['agent_pos']['mean'])
+        norm_stats['state_std'] = np.array(custom_norm_stats['norm_stats']['agent_pos']['std'])
+        print(f"Using custom normalization stats from {custon_normalization_path}")
+    else:
+        norm_stats['action_mean'] = np.array(predict_action_min)
+        norm_stats['action_std'] = np.array(predict_action_max) - np.array(predict_action_min)
+        norm_stats['state_mean'] = np.array(agent_pos_min)
+        norm_stats['state_std'] = np.array(agent_pos_max) - np.array(agent_pos_min)
     data_config.update(
         norm_stats=norm_stats,
     )
@@ -302,6 +316,7 @@ def create_x2robot_dataloader(
         right_padding=True,
         predict_action_keys=predict_action_keys,
         action_horizon=horizon,
+        obs_action_keys=obs_action_keys,
         action_history_length=action_history_length,
         image_history_length=image_history_length,
         merge_cur_history=merge_cur_history,
@@ -315,8 +330,9 @@ def create_x2robot_dataloader(
         rank=jax.process_index(),
         world_size=jax.process_count(),
         batch_size=batch_size,
-        buffer_size=300,
+        buffer_size=buffer_size, # Only use 1000 for debug mode
         device='jax',
+        model=model_type,
     )
     train_num = dataset.global_train_iters.value
     val_num = dataset.global_val_iters.value
@@ -335,13 +351,11 @@ def create_x2robot_dataloader(
         # Synchronize all processes to ensure dataset is properly initialized across all ranks
         from jax.experimental import multihost_utils
         multihost_utils.sync_global_devices("Dataset initialization complete")
-        print(f"rank {jax.process_index()}: All processes synchronized after dataset initialization", flush=True)
+        logging.info(f"rank {jax.process_index()}: All processes synchronized after dataset initialization")
     
     train_dataloader = dataset.get_train_dataloader()
-    iterator = iter(train_dataloader)
-    data = next(iterator)
-    assert False, f"data: {data[0].keys()}"
-    return train_dataloader
+    val_dataloader = dataset.get_val_dataloader()
+    return dataset, train_dataloader, val_dataloader
 
 class TorchDataLoader:
     def __init__(

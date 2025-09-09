@@ -14,13 +14,17 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import orbax.checkpoint as ocp
+import safetensors
+import torch
 
+from openpi.models_pytorch import pi0_pytorch
 from openpi.shared import image_tools
 import openpi.shared.array_typing as at
 
 logger = logging.getLogger("openpi")
 
-ArrayT = TypeVar("ArrayT", at.Array, jax.ShapeDtypeStruct)
+# Type variable for array types (JAX arrays, PyTorch tensors, or numpy arrays)
+ArrayT = TypeVar("ArrayT", bound=jax.Array | torch.Tensor | np.ndarray)
 
 
 class ModelType(enum.Enum):
@@ -28,7 +32,8 @@ class ModelType(enum.Enum):
 
     PI0 = "pi0"
     PI0_FAST = "pi0_fast"
-    PI0_5 = "pi0.5"
+    PI05 = "pi05"
+
 
 # The model always expects these images
 IMAGE_KEYS = (
@@ -112,6 +117,8 @@ class Observation(Generic[ArrayT]):
             if data["image"][key].dtype == np.uint8 or data["image"][key].dtype == jnp.uint8:
                 # logging.info(f"Converting image {key} from uint8 to float32")
                 data["image"][key] = data["image"][key].astype(np.float32) / 255.0 * 2.0 - 1.0
+            elif hasattr(data["image"][key], "dtype") and data["image"][key].dtype == torch.uint8:
+                data["image"][key] = data["image"][key].to(torch.float32).permute(0, 3, 1, 2) / 255.0 * 2.0 - 1.0
         return cls(
             images=data["image"],
             image_masks=data["image_mask"],
@@ -234,6 +241,12 @@ class BaseModelConfig(abc.ABC):
         state.replace_by_pure_dict(params)
         return nnx.merge(graphdef, state)
 
+    def load_pytorch(self, train_config, weight_path: str):
+        logger.info(f"train_config: {train_config}")
+        model = pi0_pytorch.PI0Pytorch(config=train_config.model)
+        safetensors.torch.load_model(model, weight_path)
+        return model
+
     @abc.abstractmethod
     def inputs_spec(self, *, batch_size: int = 1) -> tuple[Observation, Actions]:
         """Returns the input specification for the model. Values are jax.ShapeDtypeStruct."""
@@ -268,7 +281,7 @@ class BaseModel(nnx.Module, abc.ABC):
     ) -> at.Float[at.Array, "*b ah"]: ...
 
     @abc.abstractmethod
-    def sample_actions(self, rng: at.KeyArrayLike, observation: Observation) -> Actions: ...
+    def sample_actions(self, rng: at.KeyArrayLike, observation: Observation, **kwargs) -> Actions: ...
 
 
 def restore_params(
@@ -292,9 +305,7 @@ def restore_params(
     Returns:
         The restored params.
     """
-    params_path = pathlib.Path(params_path).resolve()
-    if not params_path.exists():
-        raise FileNotFoundError(f"Model params not found at: {params_path}")
+    params_path = pathlib.Path(params_path).resolve() if not str(params_path).startswith("gs://") else params_path
 
     if restore_type is jax.Array and sharding is None:
         mesh = jax.sharding.Mesh(jax.devices(), ("x",))

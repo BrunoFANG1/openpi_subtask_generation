@@ -24,6 +24,10 @@ members = [
     "openpi",
     "openpi-client",
 ]
+overrides = [
+    { name = "ml-dtypes", specifier = "==0.4.1" },
+    { name = "tensorstore", specifier = "==0.1.74" },
+]
 
 [[package]]
 name = "absl-py"
@@ -747,6 +751,14 @@ wheels = [
 ]
 
 [package.optional-dependencies]
+edc = [
+    { name = "typing-extensions" },
+]
+enp = [
+    { name = "einops" },
+    { name = "numpy" },
+    { name = "typing-extensions" },
+]
 epath = [
     { name = "fsspec" },
     { name = "importlib-resources" },
@@ -814,6 +826,7 @@ dependencies = [
     { name = "orbax-checkpoint" },
     { name = "pyyaml" },
     { name = "rich" },
+    { name = "tensorstore" },
     { name = "tensorstore" },
     { name = "typing-extensions" },
 ]
@@ -1514,6 +1527,7 @@ source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
 dependencies = [
     { name = "jaxlib" },
     { name = "ml-dtypes" },
+    { name = "ml-dtypes" },
     { name = "numpy" },
     { name = "opt-einsum" },
     { name = "scipy" },
@@ -1593,6 +1607,7 @@ name = "jaxlib"
 version = "0.5.3"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
 dependencies = [
+    { name = "ml-dtypes" },
     { name = "ml-dtypes" },
     { name = "numpy" },
     { name = "scipy" },
@@ -2042,6 +2057,7 @@ name = "ml-dtypes"
 version = "0.4.1"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
 dependencies = [
+    { name = "numpy" },
     { name = "numpy" },
 ]
 sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/fd/15/76f86faa0902836cc133939732f7611ace68cf54148487a99c539c272dc8/ml_dtypes-0.4.1.tar.gz", hash = "sha256:fad5f2de464fd09127e49b7fd1252b9006fb43d2edc1ff112d390c324af5ca7a", size = 692594 }
@@ -2910,7 +2926,6 @@ dependencies = [
     { name = "tqdm-loggable" },
     { name = "transformers" },
     { name = "treescope" },
-    { name = "types-boto3", extra = ["boto3", "s3"] },
     { name = "typing-extensions" },
     { name = "tyro" },
     { name = "wandb" },
@@ -2927,6 +2942,11 @@ dev = [
     { name = "pynvml" },
     { name = "pytest" },
     { name = "ruff" },
+]
+rlds = [
+    { name = "dlimp" },
+    { name = "tensorflow-cpu" },
+    { name = "tensorflow-datasets" },
 ]
 
 [package.metadata]
@@ -2971,9 +2991,8 @@ requires-dist = [
     { name = "torchcodec", specifier = "==0.2.0" },
     { name = "torchvision", specifier = "==0.21.0" },
     { name = "tqdm-loggable", specifier = ">=0.2" },
-    { name = "transformers", specifier = "==4.48.1" },
+    { name = "transformers", specifier = "==4.53.2" },
     { name = "treescope", specifier = ">=0.1.7" },
-    { name = "types-boto3", extras = ["boto3", "s3"], specifier = ">=1.35.7" },
     { name = "typing-extensions", specifier = ">=4.12.2" },
     { name = "tyro", specifier = ">=0.9.5" },
     { name = "wandb", specifier = ">=0.19.1" },
@@ -2990,6 +3009,11 @@ dev = [
     { name = "pynvml", specifier = ">=12.0.0" },
     { name = "pytest", specifier = ">=8.3.4" },
     { name = "ruff", specifier = ">=0.8.6" },
+]
+rlds = [
+    { name = "dlimp", git = "https://github.com/kvablack/dlimp?rev=ad72ce3a9b414db2185bc0b38461d4101a65477a" },
+    { name = "tensorflow-cpu", specifier = "==2.15.0" },
+    { name = "tensorflow-datasets", specifier = "==4.9.9" },
 ]
 
 [[package]]
@@ -3140,6 +3164,7 @@ dependencies = [
     { name = "protobuf" },
     { name = "pyyaml" },
     { name = "simplejson" },
+    { name = "tensorstore" },
     { name = "tensorstore" },
     { name = "typing-extensions" },
 ]
@@ -3325,6 +3350,15 @@ sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/08/39/679ca9b26c7bb2
 wheels = [
     { url = "https://pypi.tuna.tsinghua.edu.cn/packages/88/74/a88bf1b1efeae488a0c0b7bdf71429c313722d1fc0f377537fbe554e6180/pre_commit-4.2.0-py2.py3-none-any.whl", hash = "sha256:a009ca7205f1eb497d10b845e52c838a98b6cdd2102a6c8e4540e94ee75c58bd", size = 220707 },
 ]
+
+[[package]]
+name = "promise"
+version = "2.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "six" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cf/9c/fb5d48abfe5d791cd496e4242ebcf87a4bb2e0c3dcd6e0ae68c11426a528/promise-2.3.tar.gz", hash = "sha256:dfd18337c523ba4b6a58801c164c1904a9d4d1b1747c7d5dbf45b693a49d93d0", size = 19534 }
 
 [[package]]
 name = "prompt-toolkit"

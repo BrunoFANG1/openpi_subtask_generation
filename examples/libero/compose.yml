@@ -17,7 +17,9 @@ services:
       - ../../data:/data
       - /tmp/.X11-unix:/tmp/.X11-unix:ro
     environment:
+      - CLIENT_ARGS
       - DISPLAY=$DISPLAY
+      - MUJOCO_GL=${MUJOCO_GL:-egl}
     deploy:
       resources:
         reservations:

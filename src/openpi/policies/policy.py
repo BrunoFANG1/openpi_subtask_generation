@@ -32,7 +32,7 @@ class Policy(BasePolicy):
         metadata: dict[str, Any] | None = None,
     ):
         self._sample_actions = nnx_utils.module_jit(model.sample_actions)
-        self._sample_actions_rtc = nnx_utils.module_jit(model.sample_actions_rtc)
+        # self._sample_actions_rtc = nnx_utils.module_jit(model.sample_actions_rtc)
         self._input_transform = _transforms.compose(transforms)
         self._output_transform = _transforms.compose(output_transforms)
         self._rng = rng or jax.random.key(0)

@@ -1,0 +1,78 @@
+name: pick-up_cup
+# name: pick_waste_hist2s
+
+image_shape: [3, 480, 640]
+low_dim_obs_horizon: 1
+img_obs_horizon: 1
+action_horizon: 20
+action_history_length: 0
+image_history_length: 0
+is_binocular: False
+is_factory: False # 只x+0.15,z+0.2
+use_quaternion: False # 采用四元数来表示旋转
+add_noise: False
+filter_angle_outliers: False # 过滤角度异常值会报错
+use_gripper_cur: False
+use_joint_cur: False
+use_diversity_file: False
+task_config_path: /x2robot_v2/xinyuanfang/projects_v2/openpi/config/task/pick-up_cup.yaml
+distributed_instruction_ratio: 0.0
+obs_action_keys: [
+    "follow_left_ee_cartesian_pos",
+    "follow_left_ee_rotation",
+    "follow_left_gripper",
+    "follow_right_ee_cartesian_pos",
+    "follow_right_ee_rotation",
+    "follow_right_gripper",
+    "follow_left_gripper_cur",
+    "follow_right_gripper_cur",
+]
+predict_action_keys: [
+    "master_left_ee_cartesian_pos",
+    "master_left_ee_rotation",
+    "follow_left_gripper",
+    "master_right_ee_cartesian_pos",
+    "master_right_ee_rotation",
+    "follow_right_gripper",
+]
+
+dataset_path:
+- path: /x2robot_data/zhengwei/10053/20250527-day-pick-up_cup-autotrain
+- path: /x2robot_data/zhengwei/10053/20250526-day-pick-up_cup-train
+
+shape_meta: &shape_meta
+  obs:
+    face_view:
+      shape: ${task.image_shape}
+      horizon: ${task.img_obs_horizon}
+      type: rgb
+      camera_name: faceImg
+    left_wrist_view:
+      shape: ${task.image_shape}
+      horizon: ${task.img_obs_horizon}
+      type: rgb
+      camera_name: leftImg
+    right_wrist_view:
+      shape: ${task.image_shape}
+      horizon: ${task.img_obs_horizon}
+      type: rgb
+      camera_name: rightImg
+    agent_pos:
+      shape: [16] # 14 + 14
+      horizon: ${eval:'${task.low_dim_obs_horizon} + ${task.action_history_length}'}
+      type: low_dim
+  action:
+    shape: [14]
+    horizon: ${task.action_horizon}
+    type: low_dim
+
+dataset:
+  dataset_paths: ${task.dataset_path}
+  # seed: 42
+  cache_dir: /x2robot_v2/xinyuanfang/.cache/dataset_cache_2
+  is_bi_mode: True
+  repeat_num: 1
+  train_val_split: 0.99
+  # sample_ratio: [1.0, 1.0]
+  save_meta_data: True
+  force_overwrite: False

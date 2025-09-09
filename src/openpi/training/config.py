@@ -848,7 +848,28 @@ _CONFIGS = [
         # Check the base TrainConfig class for a full list of available hyperparameters.
         num_train_steps=30_000,
     ),
-
+    TrainConfig(
+        name="left_pi0_fast_20",
+        exp_name="test",
+        model=pi0_fast.Pi0FASTConfig(
+            action_dim=14,
+            action_horizon=20,
+            max_token_len=250,
+        ),
+        batch_size=128,
+        num_workers=60,
+        data=LeRobotX2robotDataConfig(
+            repo_id="sort-and-fold-clothes",
+            base_config=DataConfig(
+            local_files_only=True,
+            ),
+            default_prompt="Sort and fold clothes",
+        ),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot/xinyuanfang/projects/.cache/openpi/openpi-assets/checkpoints/pi0_fast_base/params"),
+        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
+        # Check the base TrainConfig class for a full list of available hyperparameters.
+        num_train_steps=30_000,
+    ),
     #
     # Inference Aloha configs.
     #

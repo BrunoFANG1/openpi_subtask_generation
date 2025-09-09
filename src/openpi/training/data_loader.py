@@ -255,6 +255,8 @@ def create_x2robot_dataloader(cfg):
     custon_normalization_path = default(cfg, 'task.custon_normalization_path', None)
     distributed_instruction_ratio = default(cfg, 'task.distributed_instruction_ratio', 1.0)
     dropout_agent_pos_ratio = default(cfg, 'task.dropout_agent_pos_ratio', 0.0)
+    instruction_key = default(cfg, 'task.instruction_keys', ['general'])
+    select_high_quality_data = default(cfg, 'task.select_high_quality_data', False)
     buffer_size = 1000 if cfg.training.debug else 15000
 
     # configure dataset
@@ -280,6 +282,7 @@ def create_x2robot_dataloader(cfg):
         distributed_instruction_ratio=distributed_instruction_ratio,
         custon_normalization_path=custon_normalization_path,
         dropout_agent_pos_ratio=dropout_agent_pos_ratio,
+        select_high_quality_data=select_high_quality_data,
     )
 
     norm_stats = {}

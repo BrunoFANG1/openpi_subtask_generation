@@ -59,6 +59,12 @@ def test_download_pi0_fast():
     local_path = download.maybe_download(remote_path, gs={"token": "anon"})
     assert local_path.exists()
 
+def test_download_pi05():
+    remote_path = "gs://openpi-assets/checkpoints/pi05_base"
+
+    local_path = download.maybe_download(remote_path, gs={"token": "anon"})
+    assert local_path.exists()
+
 def test_download_paligemma():
     remote_path = "gs://vertex-model-garden-paligemma-us/paligemma/pt_224.npz"
 
@@ -71,5 +77,5 @@ if __name__ == "__main__":
     os.environ["HTTP_PROXY"] = "http://10.7.145.219:3128"
     os.environ["HTTPS_PROXY"] = "http://10.7.145.219:3128"
     os.environ["OPENPI_DATA_HOME"] = "/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/test_data"
-    test_download_pi0_fast()
+    test_download_pi05()
     print("Finished")

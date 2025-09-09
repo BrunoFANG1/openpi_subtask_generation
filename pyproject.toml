@@ -48,6 +48,12 @@ dependencies = [
     "scikit-image==0.25.2",
     "pympler",
     "torchcodec==0.2.0",
+    "pandas>=2.3.1",
+    "av>=15.0.0",
+    "datasets>=4.0.0",
+    "diffusion-policy",
+    "hybrid-robot",
+    "tensorflow==2.17",
 ]
 
 
@@ -69,6 +75,8 @@ dev = [
 [tool.uv.sources]
 openpi-client = { workspace = true }
 x2robot-dataset = { path = "../x2robot_dataset", editable = true }
+diffusion-policy = { path = "../diffusion_policy", editable = true }
+hybrid-robot = { path = "../hybrid-robot", editable = true }
 
 [tool.uv.workspace]
 members = ["packages/*"]

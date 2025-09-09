@@ -4,6 +4,9 @@ checkpoints/
 data/
 wandb/
 dataset/
+config/
+examples_distributed/
+outputs/
 packages
 
 .vscode

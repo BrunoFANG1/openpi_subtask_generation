@@ -76,6 +76,6 @@ if __name__ == "__main__":
     import os
     os.environ["HTTP_PROXY"] = "http://10.7.145.219:3128"
     os.environ["HTTPS_PROXY"] = "http://10.7.145.219:3128"
-    os.environ["OPENPI_DATA_HOME"] = "/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/test_data"
+    os.environ["OPENPI_DATA_HOME"] = "/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi"
     test_download_pi05()
     print("Finished")

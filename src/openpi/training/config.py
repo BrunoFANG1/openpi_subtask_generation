@@ -15,6 +15,7 @@ import tyro
 
 import openpi.models.model as _model
 import openpi.models.pi0_config as pi0_config
+import openpi.models.pi0 as pi0
 import openpi.models.pi0_fast as pi0_fast
 import openpi.models.tokenizer as _tokenizer
 import openpi.policies.aloha_policy as aloha_policy
@@ -184,7 +185,7 @@ class DataConfigFactory(abc.ABC):
             repo_id=repo_id,
             asset_id=asset_id,
             norm_stats=self._load_norm_stats(epath.Path(self.assets.assets_dir or assets_dirs), asset_id),
-            use_quantile_norm=model_config.model_type != ModelType.PI0,
+            # use_quantile_norm=model_config.model_type != ModelType.PI0,
         )
 
     def _load_norm_stats(self, assets_dir: epath.Path, asset_id: str | None) -> dict[str, _transforms.NormStats] | None:
@@ -260,7 +261,7 @@ class LeRobotX2robotDataConfig(DataConfigFactory):
         model_transforms = ModelTransformFactory(default_prompt=self.default_prompt)(model_config)
 
         return dataclasses.replace(
-            self.create_base_config(assets_dirs),
+            self.create_base_config(assets_dirs, model_config),
             repack_transforms=self.repack_transforms,
             data_transforms=data_transforms,
             model_transforms=model_transforms,
@@ -302,7 +303,7 @@ class LeRobotX2robotMoveDataConfig(DataConfigFactory):
         model_transforms = ModelTransformFactory(default_prompt=self.default_prompt)(model_config)
 
         return dataclasses.replace(
-            self.create_base_config(assets_dirs),
+            self.create_base_config(assets_dirs, model_config),
             repack_transforms=self.repack_transforms,
             data_transforms=data_transforms,
             model_transforms=model_transforms,
@@ -634,149 +635,63 @@ class TrainConfig:
 # Use `get_config` if you need to get a config by name in your code.
 _CONFIGS = [
     TrainConfig(
-        name="debug",
-        data=FakeDataConfig(),
-        batch_size=1280,
-        model=pi0.Pi0Config(paligemma_variant="dummy", action_expert_variant="dummy"),
-        save_interval=100,
-        overwrite=True,
-        exp_name="debug",
-        num_train_steps=10,
-        wandb_enabled=False,
-    ),
-    #
-    # Finetune X2Robot configs.
-    #
-    TrainConfig(
-        name="infer_fast",
-        model=pi0_fast.Pi0FASTConfig(action_horizon=20),
-        batch_size=2,
-        # num_workers=100,
-        data=LeRobotX2robotDataConfig(
-            repo_id="entangle_line_20250323",
-            base_config=DataConfig(
-            # local_files_only=True,
-            ),
-            default_prompt="Do something for fun",
-        ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_base/params"),
-        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
-        # Check the base TrainConfig class for a full list of available hyperparameters.
-        num_train_steps=30_000,
-    ),
-    TrainConfig(
-        name="infer_pi0",
-        model=pi0.Pi0Config(action_horizon=20),
-        batch_size=2,
-        # num_workers=100,
-        data=LeRobotX2robotDataConfig(
-            repo_id="entangle_line_20250323",
-            base_config=DataConfig(
-            # local_files_only=True,
-            ),
-            default_prompt="Do something for fun",
-        ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_base/params"),
-        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
-        # Check the base TrainConfig class for a full list of available hyperparameters.
-        num_train_steps=30_000,
-    ),
-    TrainConfig(
-        name="x2robot_fast_entangle_line_three_fork_disturb_random",
-        # Here is an example of loading a pi0-FAST model for full finetuning.
-        # Modify action_dim and action_horizon to match your dataset (action horizon is equal to
-        # the desired action chunk length).
-        # The max_token_len is the maximum number of (non-image) tokens the model can handle.
-        # This includes the tokenized prompt, proprioceptive state, and (FAST-tokenized) action tokens.
-        # Choosing this value too small may chop off tokens at the end of your sequence (the code will throw
-        # a warning), while choosing it too large will waste memory (since we pad each batch element to the
-        # max_token_len). A good rule of thumb is to use approx 180 for single-arm robots, and approx 250 for
-        # two-arm robots. Generally, err on the lower side here first, and potentially increase the value if
-        # you see many warnings being thrown during training.
-        model=pi0_fast.Pi0FASTConfig(action_dim=14, action_horizon=20, max_token_len=250),
-        data=LeRobotX2robotDataConfig(
-            repo_id="entangle-line-three-fork-disturb-random",
-            base_config=DataConfig(
-                local_files_only=True,  # Set to True for local-only datasets.
-                prompt_from_task=False,
-            ),
-        ),
-        # Note that we load the pi0-FAST base model checkpoint here.
-        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_fast_base/params"),
-        num_train_steps=30_000,
-    ),
-    TrainConfig(
-        name="x2robot_fast_spell_word",
-        # Here is an example of loading a pi0-FAST model for full finetuning.
-        # Modify action_dim and action_horizon to match your dataset (action horizon is equal to
-        # the desired action chunk length).
-        # The max_token_len is the maximum number of (non-image) tokens the model can handle.
-        # This includes the tokenized prompt, proprioceptive state, and (FAST-tokenized) action tokens.
-        # Choosing this value too small may chop off tokens at the end of your sequence (the code will throw
-        # a warning), while choosing it too large will waste memory (since we pad each batch element to the
-        # max_token_len). A good rule of thumb is to use approx 180 for single-arm robots, and approx 250 for
-        # two-arm robots. Generally, err on the lower side here first, and potentially increase the value if
-        # you see many warnings being thrown during training.
-        model=pi0_fast.Pi0FASTConfig(action_dim=14, action_horizon=20, max_token_len=250),
-        exp_name="test_2",
-        data=LeRobotX2robotDataConfig(
-            repo_id="spell-word",
-            base_config=DataConfig(
-                local_files_only=True,  # Set to True for local-only datasets.
-                prompt_from_task=False,
-            ),
-        ),
-        # Note that we load the pi0-FAST base model checkpoint here.
-        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_fast_base/params"),
-        num_train_steps=30_000,
-    ),
-    TrainConfig(
-        name="pi0_x2robot_office_sort_and_fold_clothes",
-        model=pi0.Pi0Config(),
-        batch_size=16,
-        num_workers=80,
-        data=LeRobotX2robotDataConfig(
-            repo_id="office-sort-and-fold-clothes",
-            base_config=DataConfig(
-            local_files_only=True,
-            ),
-            default_prompt="Sort and fold towels",
-        ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_base/params"),
-        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
-        # Check the base TrainConfig class for a full list of available hyperparameters.
-        num_train_steps=30_000,
-    ),
-    TrainConfig(
-        name="pi0_x2robot_entangle_line",
-        exp_name="test_2",
-        model=pi0.Pi0Config(),
-        batch_size=16,
-        num_workers=80,
-        data=LeRobotX2robotDataConfig(
-            repo_id="entangle-line",
-            base_config=DataConfig(
-            local_files_only=True,
-            ),
-            default_prompt="Sort and fold towels",
-        ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
-        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
-        # Check the base TrainConfig class for a full list of available hyperparameters.
-        num_train_steps=30_000,
-    ),
-    TrainConfig(
         name="left_pi0_20",
         exp_name="debug_test",
-        model=pi0.Pi0Config(action_horizon=20),
+        model=pi0_config.Pi0Config(action_horizon=20),
         weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
         data=LeRobotX2robotDataConfig(
             repo_id="pi0_distribute_package",
             base_config=DataConfig(
             asset_id="pi0_distribute_package",
-            local_files_only=True,
+            # local_files_only=True,
             ),
-            default_prompt="",
+            # default_prompt="",
+        ),
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=3000,
+            peak_lr=2.5e-5,
+            decay_steps=150_000,
+            decay_lr=2.5e-6,
+        ),
+        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
+        # Check the base TrainConfig class for a full list of available hyperparameters.
+        num_train_steps=30_000,
+    ),
+    TrainConfig(
+        name="left_pi05_20",
+        exp_name="debug_test",
+        model=pi0_config.Pi0Config(action_horizon=20, pi05=True),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
+        data=LeRobotX2robotDataConfig(
+            repo_id="pi0_distribute_package",
+            base_config=DataConfig(
+            asset_id="pi0_distribute_package",
+            # local_files_only=True,
+            ),
+            # default_prompt="",
+        ),
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=3000,
+            peak_lr=2.5e-5,
+            decay_steps=150_000,
+            decay_lr=2.5e-6,
+        ),
+        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
+        # Check the base TrainConfig class for a full list of available hyperparameters.
+        num_train_steps=30_000,
+    ),
+    TrainConfig(
+        name="left_pi05_move_data_20",
+        exp_name="debug_test",
+        model=pi0_config.Pi0Config(action_horizon=20, pi05=True),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
+        data=LeRobotX2robotMoveDataConfig(
+            repo_id="pi0_distribute_package",
+            base_config=DataConfig(
+            asset_id="pi0_distribute_package",
+            # local_files_only=True,
+            ),
+            # default_prompt="",
         ),
         lr_schedule=_optimizer.CosineDecaySchedule(
             warmup_steps=3000,
@@ -791,15 +706,15 @@ _CONFIGS = [
     TrainConfig(
         name="left_pi0_paligemma_20",
         exp_name="debug_test",
-        model=pi0.Pi0Config(action_horizon=20),
+        model=pi0_config.Pi0Config(action_horizon=20),
         weight_loader=weight_loaders.PaliGemmaWeightLoader(),
         data=LeRobotX2robotDataConfig(
             repo_id="pi0_distribute_package",
             base_config=DataConfig(
             asset_id="pi0_distribute_package",
-            local_files_only=True,
+            # local_files_only=True,
             ),
-            default_prompt="",
+            # default_prompt="",
         ),
         lr_schedule=_optimizer.CosineDecaySchedule(
             warmup_steps=3000,
@@ -814,15 +729,15 @@ _CONFIGS = [
     TrainConfig(
         name="left_pi0_30",
         exp_name="debug_test",
-        model=pi0.Pi0Config(action_horizon=30),
+        model=pi0_config.Pi0Config(action_horizon=30),
         weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
         data=LeRobotX2robotDataConfig(
             repo_id="pi0_distribute_package",
             base_config=DataConfig(
             asset_id="pi0_distribute_package",
-            local_files_only=True,
+            # local_files_only=True,
             ),
-            default_prompt="",
+            # default_prompt="",
         ),
         lr_schedule=_optimizer.CosineDecaySchedule(
             warmup_steps=3000,
@@ -837,15 +752,15 @@ _CONFIGS = [
     TrainConfig(
         name="left_pi0_fixed",
         exp_name="debug_test",
-        model=pi0.Pi0Config(action_horizon=20),
+        model=pi0_config.Pi0Config(action_horizon=20),
         weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
         data=LeRobotX2robotDataConfig(
             repo_id="pi0_distribute_package",
             base_config=DataConfig(
             asset_id="pi0_distribute_package",
-            local_files_only=True,
+            # local_files_only=True,
             ),
-            default_prompt="",
+            # default_prompt="",
         ),
         lr_schedule=_optimizer.CosineDecaySchedule(
             warmup_steps=3000,
@@ -860,13 +775,13 @@ _CONFIGS = [
     TrainConfig(
         name="left_pi0_sort_mix",
         exp_name="debug_test",
-        model=pi0.Pi0Config(action_horizon=20),
+        model=pi0_config.Pi0Config(action_horizon=20),
         weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
         data=LeRobotX2robotMoveDataConfig(
             repo_id="pi0_distribute_package",
             base_config=DataConfig(
             asset_id="pi0_distribute_package",
-            local_files_only=True,
+            # local_files_only=True,
             ),
             # default_prompt="",
         ),
@@ -883,13 +798,13 @@ _CONFIGS = [
     TrainConfig(
         name="left_pi0_move_data_20",
         exp_name="debug_test",
-        model=pi0.Pi0Config(action_horizon=20),
+        model=pi0_config.Pi0Config(action_horizon=20),
         weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
         data=LeRobotX2robotMoveDataConfig(
             repo_id="pi0_distribute_package",
             base_config=DataConfig(
             asset_id="pi0_distribute_package",
-            local_files_only=True,
+            # local_files_only=True,
             ),
             # default_prompt="",
         ),
@@ -906,13 +821,13 @@ _CONFIGS = [
     TrainConfig(
         name="left_pi0_move_data_30",
         exp_name="debug_test",
-        model=pi0.Pi0Config(action_horizon=30),
+        model=pi0_config.Pi0Config(action_horizon=30),
         weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
         data=LeRobotX2robotMoveDataConfig(
             repo_id="pi0_distribute_package",
             base_config=DataConfig(
             asset_id="pi0_distribute_package",
-            local_files_only=True,
+            # local_files_only=True,
             ),
             # default_prompt="",
         ),
@@ -922,64 +837,6 @@ _CONFIGS = [
             decay_steps=150_000,
             decay_lr=2.5e-6,
         ),
-        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
-        # Check the base TrainConfig class for a full list of available hyperparameters.
-        num_train_steps=30_000,
-    ),
-    TrainConfig(
-        name="pi0_x2robot_entangle_line_2",
-        exp_name="test_3",
-        model=pi0.Pi0Config(),
-        batch_size=16,
-        num_workers=80,
-        data=LeRobotX2robotDataConfig(
-            repo_id="entangle-line",
-            base_config=DataConfig(
-            local_files_only=True,
-            ),
-            default_prompt="Sort and fold towels",
-        ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
-        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
-        # Check the base TrainConfig class for a full list of available hyperparameters.
-        num_train_steps=30_000,
-    ),
-    TrainConfig(
-        name="pi0_x2robot_sort_and_fold_clothes",
-        model=pi0.Pi0Config(),
-        batch_size=128,
-        num_workers=80,
-        data=LeRobotX2robotDataConfig(
-            repo_id="sort-and-fold-clothes",
-            base_config=DataConfig(
-            local_files_only=True,
-            ),
-            default_prompt="Sort and fold clothes",
-        ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("s3://openpi-assets/checkpoints/pi0_base/params"),
-        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
-        # Check the base TrainConfig class for a full list of available hyperparameters.
-        num_train_steps=30_000,
-    ),
-
-    TrainConfig(
-        name="pi0_fast_x2robot_sort_and_fold_clothes",
-        exp_name="test",
-        model=pi0_fast.Pi0FASTConfig(
-            action_dim=14,
-            action_horizon=20,
-            max_token_len=250,
-        ),
-        batch_size=128,
-        num_workers=60,
-        data=LeRobotX2robotDataConfig(
-            repo_id="sort-and-fold-clothes",
-            base_config=DataConfig(
-            local_files_only=True,
-            ),
-            default_prompt="Sort and fold clothes",
-        ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot/xinyuanfang/projects/.cache/openpi/openpi-assets/checkpoints/pi0_fast_base/params"),
         # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
         # Check the base TrainConfig class for a full list of available hyperparameters.
         num_train_steps=30_000,
@@ -997,9 +854,9 @@ _CONFIGS = [
         data=LeRobotX2robotDataConfig(
             repo_id="sort-and-fold-clothes",
             base_config=DataConfig(
-            local_files_only=True,
+            # local_files_only=True,
             ),
-            default_prompt="Sort and fold clothes",
+            # default_prompt="Sort and fold clothes",
         ),
         weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot/xinyuanfang/projects/.cache/openpi/openpi-assets/checkpoints/pi0_fast_base/params"),
         # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
@@ -1378,45 +1235,6 @@ _CONFIGS = [
         weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi0_base/params"),
         num_train_steps=20_000,
     ),
-    #
-    # Debugging configs.
-    #
-    TrainConfig(
-        name="debug",
-        data=FakeDataConfig(),
-        batch_size=2,
-        model=pi0_config.Pi0Config(paligemma_variant="dummy", action_expert_variant="dummy"),
-        save_interval=100,
-        overwrite=True,
-        exp_name="debug",
-        num_train_steps=10,
-        wandb_enabled=False,
-    ),
-    TrainConfig(
-        name="debug_restore",
-        data=FakeDataConfig(),
-        batch_size=2,
-        model=pi0_config.Pi0Config(paligemma_variant="dummy", action_expert_variant="dummy"),
-        weight_loader=weight_loaders.CheckpointWeightLoader("./checkpoints/debug/debug/9/params"),
-        overwrite=True,
-        exp_name="debug",
-        num_train_steps=10,
-        wandb_enabled=False,
-    ),
-    TrainConfig(
-        name="debug_pi05",
-        model=pi0_config.Pi0Config(pi05=True, paligemma_variant="dummy", action_expert_variant="dummy"),
-        data=FakeDataConfig(),
-        batch_size=2,
-        num_train_steps=10,
-        overwrite=True,
-        exp_name="debug_pi05",
-        wandb_enabled=False,
-    ),
-    #
-    # RoboArena configs.
-    #
-    *roboarena_config.get_roboarena_configs(),
 ]
 
 if len({config.name for config in _CONFIGS}) != len(_CONFIGS):

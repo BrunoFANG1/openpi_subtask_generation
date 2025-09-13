@@ -7,6 +7,8 @@ dataset/
 config/
 examples_distributed/
 outputs/
+workspace/
+sbatch_scripts/
 packages
 
 .vscode

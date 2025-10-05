@@ -276,14 +276,21 @@ def main(cfg):
         seed=cfg.training.seed,
     )
 
-    if int(os.environ.get("SLURM_NTASKS", "0")) > 1:
-        jax.distributed.initialize()
+    # coordinator_address = f"{MASTER_ADDR}:{MASTER_PORT}"
+    # num_processes = int(os.environ["WORLD_SIZE"])
+    # process_id = int(os.environ["RANK"])
+    # assert False, f'coordinator_address: {coordinator_address} num_processes: {num_processes} process_id: {process_id}'
+
+        
+    # jax.distributed.initialize(
+    #     coordinator_address=os.environ['MASTER_ADDR'],  # 主节点地址
+    #     num_processes=int(os.environ['WORLD_SIZE'])*int(os.environ['NPROC_PER_NODE']),    # 总进程数= node数*每个node的进程数
+    #     process_id=int(os.environ['PROCESS_INDEX']),             # 当前进程 ID
+    #     initialization_timeout=300,  # 初始化超时
+    #     heartbeat_timeout_seconds=100  # 心跳超时
+    # )
     # Set master addr and port after jax distributed initialization
-    if MASTER_ADDR:
-        os.environ['MASTER_ADDR'] = MASTER_ADDR
-    if MASTER_PORT:
-        os.environ['MASTER_PORT'] = MASTER_PORT
-    os.environ['GLOO_SOCKET_IFNAME'] = 'eth0'
+    os.environ['GLOO_SOCKET_IFNAME'] = 'eth0' # TODO: check it
 
     init_logging(cfg.training.debug)
     logging.info(f"Running on: {platform.node()}")

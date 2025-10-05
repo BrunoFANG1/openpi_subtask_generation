@@ -15,6 +15,7 @@ import tyro
 
 import openpi.models.model as _model
 import openpi.models.pi0_config as pi0_config
+import openpi.models.pi05_config as pi05_config
 import openpi.models.pi0 as pi0
 import openpi.models.pi0_fast as pi0_fast
 import openpi.models.tokenizer as _tokenizer
@@ -681,6 +682,29 @@ _CONFIGS = [
         num_train_steps=30_000,
     ),
     TrainConfig(
+        name="right_pi05_20",
+        exp_name="debug_test",
+        model=pi05_config.Pi05Config(action_horizon=20, pi05=True),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
+        data=LeRobotX2robotDataConfig(
+            repo_id="pi0_distribute_package",
+            base_config=DataConfig(
+            asset_id="pi0_distribute_package",
+            # local_files_only=True,
+            ),
+            # default_prompt="",
+        ),
+        lr_schedule=_optimizer.CosineDecaySchedule(
+            warmup_steps=3000,
+            peak_lr=2.5e-5,
+            decay_steps=150_000,
+            decay_lr=2.5e-6,
+        ),
+        # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
+        # Check the base TrainConfig class for a full list of available hyperparameters.
+        num_train_steps=30_000,
+    ),
+    TrainConfig(
         name="left_pi05_move_data_20",
         exp_name="debug_test",
         model=pi0_config.Pi0Config(action_horizon=20, pi05=True),
@@ -858,7 +882,7 @@ _CONFIGS = [
             ),
             # default_prompt="Sort and fold clothes",
         ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot/xinyuanfang/projects/.cache/openpi/openpi-assets/checkpoints/pi0_fast_base/params"),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_fast_base/params"),
         # Below you can define other hyperparameters like the learning rate, number of training steps, etc.
         # Check the base TrainConfig class for a full list of available hyperparameters.
         num_train_steps=30_000,

@@ -159,8 +159,9 @@ class Pi05(_model.BaseModel):
             tokenized_inputs = self.PaliGemma.llm(obs.tokenized_prompt, method="embed")
             tokens.append(tokenized_inputs)
             input_mask.append(obs.tokenized_prompt_mask)
-            # full attention between image and language inputs
-            ar_mask += [False] * tokenized_inputs.shape[1]
+            ### TODO: pi0 -> full attention between image and language inputs
+            ### TODO: pi05 -> AR attention for subtask generation, but what about action expert?
+            ar_mask += [True] * tokenized_inputs.shape[1]
         tokens = jnp.concatenate(tokens, axis=1)
         input_mask = jnp.concatenate(input_mask, axis=1)
         ar_mask = jnp.array(ar_mask)
@@ -203,24 +204,30 @@ class Pi05(_model.BaseModel):
     def compute_loss(
         self, rng: at.KeyArrayLike, observation: _model.Observation, actions: _model.Actions, *, real_action_dim: int=32, train: bool = False
     ) -> at.Float[at.Array, "*b ah"]:
+        # TODO: Support only use part of loss (e.g. only)
         observation = _model.preprocess_observation(
             rng, observation, train=train, image_keys=list(observation.images.keys())
         )
 
-        # Compute inputs: one big forward pass of prefix + suffix at once
-        input_token_embeddings, input_mask, ar_mask = self.embed_prefix(observation)
-        attn_mask = make_attn_mask(input_mask, ar_mask)
+        prefix_token_embeddings, prefix_mask, prefix_ar_mask = self.embed_prefix(observation)
+        prefix_attn_mask = make_attn_mask(prefix_mask, prefix_ar_mask)
 
+        ### 1. Subtask-Generation Loss (Cross-Entropy Loss)
         # Compute one-hot targets: we predict *next* token, so shift the input tokens by one.
+        # TODO: Do we need state to perform subtask generation?
         targets = jax.nn.one_hot(
             observation.tokenized_prompt[:, 1:],
             self.PaliGemma.llm.module.vocab_size,
         )
 
+        # Use prefix tokens to perform subtask generation (Prefix: images*3, high-level prompt, low-level prompt, state?)
         # Each input predicts *next* token, so we don't input the last token.
-        positions = jnp.cumsum(input_mask, axis=1) - 1
-        (prefix_out, _), _ = self.PaliGemma.llm(
-            [input_token_embeddings, None], mask=attn_mask, positions=positions, adarms_cond=[None, None]
+        prefix_positions = jnp.cumsum(prefix_mask, axis=1) - 1
+        (prefix_out, _), kv_cache = self.PaliGemma.llm(
+            [prefix_token_embeddings[:, :-1], None], 
+            mask=prefix_attn_mask[:, :-1, :-1], 
+            positions=prefix_positions[:, :-1], 
+            adarms_cond=[None, None]
         )
         
         # decode from embedding to logits
@@ -233,45 +240,59 @@ class Pi05(_model.BaseModel):
         assert observation.token_loss_mask is not None, "Token loss mask is required"
         loss_mask = observation.token_loss_mask[:, 1:]
         token_pplx = jnp.sum(targets * logp, axis=-1)
-        return -jnp.sum(token_pplx * loss_mask, axis=-1) / jnp.clip(jnp.sum(loss_mask, -1), 1)
+        subtask_generation_loss = -jnp.sum(token_pplx * loss_mask, axis=-1) / jnp.clip(jnp.sum(loss_mask, -1), 1)
+
+        # ### 2. Flow Matching Loss (MSE Loss)
+        # preprocess_rng, noise_rng, time_rng = jax.random.split(rng, 3)
+        # batch_shape = actions.shape[:-2]
+        # noise = jax.random.normal(noise_rng, actions.shape)
+        # time = jax.random.beta(time_rng, 1.5, 1, batch_shape) * 0.999 + 0.001
+        # time_expanded = time[..., None, None]
+        # x_t = time_expanded * noise + (1 - time_expanded) * actions
+        # u_t = noise - actions
+
+        # suffix_tokens, suffix_mask, suffix_ar_mask, adarms_cond = self.embed_suffix(observation, x_t, time)
+        # input_mask = jnp.concatenate([prefix_mask, suffix_mask], axis=1)
+        # ar_mask = jnp.concatenate([prefix_ar_mask, suffix_ar_mask], axis=0)
+        # positions = jnp.cumsum(input_mask, axis=1) - 1
+        # (_, suffix_out), _ = self.PaliGemma.llm(
+        #     [prefix_tokens, suffix_tokens], kv_cache=kv_cache, mask=attn_mask, positions=positions, adarms_cond=[None, adarms_cond]
+        # )
+        # v_t = self.action_out_proj(suffix_out[:, -self.action_horizon :])
+
+        # # Calculate flow loss with true actions (Real Action Dim <= Action Dim (Padding))
+        # flow_loss = jnp.mean(jnp.square(v_t[:, :, :real_action_dim] - u_t[:, :, :real_action_dim]), axis=-1)
+
+        return subtask_generation_loss # + flow_loss
 
     @override
     def sample_low_level_task(
         self,
         rng: at.KeyArrayLike,
         observation: _model.Observation,
-        max_decoding_steps: int = 20,
+        max_decoding_steps: int = 100,
         PALIGEMMA_EOS_TOKEN: int = 1,
-        temperature: float = 0.0
+        temperature: float = 0.0,
+        tokenizer: _tokenizer.PaligemmaTokenizer = _tokenizer.PaligemmaTokenizer(max_len=200),
     ) -> str:
-        tokenizer = _tokenizer.PaligemmaTokenizer(max_len=max_decoding_steps)
-        
-        # Due to decode, we have to mask the low level task tokens
-        decode_masks = (observation.token_loss_mask == True)
-        new_tokenized_prompt = observation.tokenized_prompt
-        new_tokenized_prompt_mask = observation.tokenized_prompt_mask
-        new_token_ar_mask = observation.token_ar_mask
-        new_token_loss_mask = observation.token_loss_mask
 
-        # Use JAX immutable updates instead of in-place assignment
-        new_tokenized_prompt = new_tokenized_prompt.at[decode_masks].set(False)
-        new_tokenized_prompt_mask = new_tokenized_prompt_mask.at[decode_masks].set(False)
-        new_token_ar_mask = new_token_ar_mask.at[decode_masks].set(False)
-        new_token_loss_mask = new_token_loss_mask.at[decode_masks].set(False)
-
+        # Set the low level task tokens to padding according to the loss mask (loss mask is the indication of low-level prompt)
+        batch_size = observation.tokenized_prompt.shape[0]
+        loss_mask = observation.token_loss_mask
+        new_tokenized_prompt = observation.tokenized_prompt.at[loss_mask].set(0)
+        new_tokenized_prompt_mask = observation.tokenized_prompt_mask.at[loss_mask].set(False)
         observation = _model.Observation(
                             images=observation.images,
                             image_masks=observation.image_masks,
                             state=observation.state,
                             tokenized_prompt=new_tokenized_prompt,
                             tokenized_prompt_mask=new_tokenized_prompt_mask,
-                            token_ar_mask=new_token_ar_mask,
-                            token_loss_mask=new_token_loss_mask,
+                            token_ar_mask=observation.token_ar_mask,
+                            token_loss_mask=observation.token_loss_mask,
                             )
 
         observation = _model.preprocess_observation(None, observation, train=False, image_keys=list(observation.images.keys()))
         prefix_token_embeddings, prefix_mask, prefix_ar_mask = self.embed_prefix(observation)
-        
         prefix_attn_mask = make_attn_mask(prefix_mask, prefix_ar_mask)
 
         # left to right align all input token sequences
@@ -288,9 +309,10 @@ class Pi05(_model.BaseModel):
         (prefix_out, _), kv_cache = self.PaliGemma.llm(
             [prefix_token_embeddings, None], mask=prefix_attn_mask, positions=prefix_positions, adarms_cond=[None, None]
         )
-        last_logit = prefix_out[:, -1:]
-        output_tokens = jnp.zeros((last_logit.shape[0], max_decoding_steps))
-
+        last_token_embedding = prefix_out[:, -1:]
+        last_logits = self.PaliGemma.llm(last_token_embedding, method="deembed")
+        last_logits = jax.nn.log_softmax(last_logits, axis=-1)
+        output_tokens = jnp.zeros((batch_size, max_decoding_steps))
 
         def step(carry):
             rng, last_logit, output_tokens, cache, _, step = carry
@@ -307,30 +329,27 @@ class Pi05(_model.BaseModel):
             output_tokens = put_along_last_axis(output_tokens, jnp.broadcast_to(step, (token.shape[0], 1)), token)
 
             # Check for early stopping --> stop if all batch elements have EOS token
+            ### TODO: erase extra decoded token due to mismatch
             has_eos = jnp.any(token == PALIGEMMA_EOS_TOKEN, axis=-1)
             all_eos = jnp.all(has_eos)
 
             # Decode one step
             token_embedding =  self.PaliGemma.llm(token, method="embed")
-            positions = prefill_len[:, None] + step + 1
+            positions = prefill_len[:, None] + step
             mask = jnp.logical_and(
                 jnp.arange(prefill_size + max_decoding_steps)[None, None, :] >= prefix_start[:, None, None],
                 jnp.arange(prefill_size + max_decoding_steps)[None, None, :]
                 < (jnp.broadcast_to(prefill_size + step + 1, (prefix_start.shape[0], 1, 1))),
             )
-            # last_logit, kv_cache, _ = self.PaliGemma.llm(
-            #     embedded_prefix=token_embedding, mask=mask, positions=positions, decode=True, kv_cache=cache
-            # )
 
-            # jax.debug.breakpoint()
             (prefix_out, _), kv_cache = self.PaliGemma.llm(
                 [token_embedding, None], mask=mask, positions=positions, adarms_cond=[None, None], kv_cache=cache
             )
-            last_logit = prefix_out[:, -1:]
+            last_token_embedding = prefix_out[:, -1:]
+            last_logits = self.PaliGemma.llm(last_token_embedding, method="deembed")
+            last_logits = jax.nn.log_softmax(last_logits, axis=-1)
 
-            # jax.debug.breakpoint()
-
-            return rng, last_logit, output_tokens, kv_cache, all_eos, step + 1
+            return rng, last_logits, output_tokens, kv_cache, all_eos, step + 1
 
         def cond(carry):
             _, _, _, _, all_eos, step = carry
@@ -338,7 +357,7 @@ class Pi05(_model.BaseModel):
 
         # Use lax.while_loop so we can jit the full decoding loop.
         _, _, output_tokens, _, _, _ = jax.lax.while_loop(
-            cond, step, (rng, last_logit, output_tokens, kv_cache, False, 0)
+            cond, step, (rng, last_logits, output_tokens, kv_cache, False, 0)
         )
         for i in range(output_tokens.shape[0]):
             print(tokenizer.detokenize(np.array(output_tokens[i], dtype=np.int32)), flush=True)

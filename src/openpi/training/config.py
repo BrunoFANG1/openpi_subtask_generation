@@ -685,7 +685,7 @@ _CONFIGS = [
         name="right_pi05_20",
         exp_name="debug_test",
         model=pi05_config.Pi05Config(action_horizon=20, pi05=True),
-        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi0_base/params"),
+        weight_loader=weight_loaders.CheckpointWeightLoader("/x2robot_v2/xinyuanfang/projects_v2/.cache/openpi/openpi-assets/checkpoints/pi05_base/params"),
         data=LeRobotX2robotDataConfig(
             repo_id="pi0_distribute_package",
             base_config=DataConfig(

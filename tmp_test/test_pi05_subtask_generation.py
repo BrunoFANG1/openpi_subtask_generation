@@ -78,3 +78,4 @@ observation = _model.preprocess_observation(rng, observation, train=False, image
 output_tokens = model.sample_low_level_task(rng, observation, max_decoding_steps, PALIGEMMA_EOS_TOKEN, temperature, tokenizer)
 
 ### 20251005实验结果：完全乱输出，但是训练一下应该问题不大
+### 20251006实验结果：0-shot 正常输出： move to table and then pick up black pen，之前不行是因为用了pi0的ckpt

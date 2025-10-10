@@ -6,6 +6,7 @@ import numpy as np
 import jax
 import cv2
 from flax import nnx
+import time
 from openpi.models import model as _model
 import openpi.shared.nnx_utils as nnx_utils
 import jax.numpy as jnp
@@ -15,22 +16,26 @@ from openpi.models.model import Observation
 from openpi.models.pi0 import make_attn_mask
 
 PALIGEMMA_EOS_TOKEN = 1
-max_decoding_steps = 100
+max_decoding_steps = 25
 temperature = 0.1
 
 ### Step 1: Initialize model and load pretrained params
+print("debug line 0")
 config = get_config("right_pi05_20")
 model_rng = jax.random.key(0)
 rng = jax.random.key(0)
+print("debug line 0-0")
 model = config.model.create(model_rng)
 
 # Load pretrained params
+print(f"debug line 0-1")
 graphdef, state = nnx.split(model)
 loader = config.weight_loader
 params = nnx.state(model)
 # Convert frozen params to bfloat16.
 params = nnx_utils.state_map(params, config.freeze_filter, lambda p: p.replace(p.value.astype(jnp.bfloat16)))
 
+print("denig line 0-2")
 params_shape = params.to_pure_dict()
 loaded_params = loader.load(params_shape)
 state.replace_by_pure_dict(loaded_params)
@@ -38,6 +43,7 @@ model = nnx.merge(graphdef, state)
 
 ### Step 2: Construct an observation batch
 # load 3 images from tmp_test as uint8 format
+print("debug line 1")
 img_share_path = '/x2robot_v2/xinyuanfang/projects_v2/openpi/tmp_test'
 img_name_list = ['faceImg.png', 'leftImg.png', 'rightImg.png']
 img_list = []
@@ -56,8 +62,10 @@ img_dict = {
 # Tokenize the prompt
 high_level_prompt = 'Pick up the flashcard on the table'
 low_level_prompt = 'ABCDEFG'
-tokenizer = PaligemmaTokenizer(max_len=200)
+tokenizer = PaligemmaTokenizer(max_len=50)
 tokenized_prompt, tokenized_prompt_mask, token_ar_mask, token_loss_mask = tokenizer.tokenize_high_low_prompt(high_level_prompt, low_level_prompt)
+
+print("debug line 2")
 
 # form a observation
 data = {
@@ -74,8 +82,49 @@ observation = Observation.from_dict(data)
 rng = jax.random.key(42)
 observation = _model.preprocess_observation(rng, observation, train=False, image_keys=list(observation.images.keys()))
 
+# Set the low level task tokens to padding according to the loss mask (loss mask is the indication of low-level prompt)
+# We move it from inside model to outside because the inside func need to be jittable
+loss_mask = jnp.array(observation.token_loss_mask)
+new_tokenized_prompt = observation.tokenized_prompt.at[loss_mask].set(0)
+new_tokenized_prompt_mask = observation.tokenized_prompt_mask.at[loss_mask].set(False)
+new_observation = _model.Observation(
+                    images=observation.images,
+                    image_masks=observation.image_masks,
+                    state=observation.state,
+                    tokenized_prompt=new_tokenized_prompt,
+                    tokenized_prompt_mask=new_tokenized_prompt_mask,
+                    token_ar_mask=observation.token_ar_mask,
+                    token_loss_mask=observation.token_loss_mask,
+                    )
+observation = _model.preprocess_observation(None, new_observation, train=False, image_keys=list(observation.images.keys()))
+observation = jax.tree.map(jax.device_put, observation)
+
+
 ### Step 3: Run one inference
-output_tokens = model.sample_low_level_task(rng, observation, max_decoding_steps, PALIGEMMA_EOS_TOKEN, temperature, tokenizer)
+
+# Jax Just-in-time compilation
+# Make max_decoding_steps static for JIT to avoid tracer issues in jnp.pad
+model.jit_sample_low_level_task = nnx_utils.module_jit(model.sample_low_level_task, static_argnums=(3,))
+
+for i in range(3):
+    start_time = time.time()
+    predicted_token, ground_truth_token = model.jit_sample_low_level_task(rng, observation, max_decoding_steps, PALIGEMMA_EOS_TOKEN, temperature)
+
+    for i in range(predicted_token.shape[0]):
+        print('======================')
+        print(f"\033[31m[PRED]\033[0m " + tokenizer.detokenize(np.array(predicted_token[i], dtype=np.int32)), flush=True)
+        print(f"\033[32m[GT]\033[0m   " + tokenizer.detokenize(np.array(ground_truth_token[i], dtype=np.int32)), flush=True)
+        print('======================')
+    end_time = time.time()
+    print(f"Time taken: {end_time - start_time} seconds")
+    time.sleep(5)
+# sampled_actions = model.sample_actions(rng, observation)
+
+# action = jax.random.normal(rng, (1, 20, 32))
+# output = model.compute_loss(rng, observation, action, train=True, real_action_dim=14)
+# print(output)
+
 
 ### 20251005实验结果：完全乱输出，但是训练一下应该问题不大
 ### 20251006实验结果：0-shot 正常输出： move to table and then pick up black pen，之前不行是因为用了pi0的ckpt
+### 20251010实验结果，0-shot 正常输出，jit加速后inference speed显著提升: A800上，第一次编译26s,之后稳定在1.4s左右

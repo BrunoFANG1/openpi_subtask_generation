@@ -15,6 +15,7 @@ from typing_extensions import override
 
 from openpi import transforms as _transforms
 from openpi.models import model as _model
+from openpi.models import tokenizer as _tokenizer
 from openpi.shared import array_typing as at
 from openpi.shared import nnx_utils
 
@@ -90,9 +91,18 @@ class Policy(BasePolicy):
 
         observation = _model.Observation.from_dict(inputs)
         start_time = time.monotonic()
+        action_output = self._sample_actions(sample_rng_or_pytorch_device, observation, **sample_kwargs)
+        if isinstance(action_output, tuple):
+            actions = action_output[0]
+            output_tokens = action_output[1]
+            tokenizer = _tokenizer.PaligemmaTokenizer(max_len=50)
+            output_tokens = jnp.array(output_tokens, dtype=int)
+            print(f"Generated Subtask: {tokenizer.detokenize(output_tokens[0])}")
+        else:
+            action = action_output
         outputs = {
             "state": inputs["state"],
-            "actions": self._sample_actions(sample_rng_or_pytorch_device, observation, **sample_kwargs),
+            "actions": actions,
         }
         model_time = time.monotonic() - start_time
         if self._is_pytorch_model:

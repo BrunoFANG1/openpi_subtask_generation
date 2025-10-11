@@ -105,15 +105,13 @@ observation = jax.tree.map(jax.device_put, observation)
 # Jax Just-in-time compilation
 # Make max_decoding_steps static for JIT to avoid tracer issues in jnp.pad
 model.jit_sample_low_level_task = nnx_utils.module_jit(model.sample_low_level_task, static_argnums=(3,))
-
 for i in range(3):
     start_time = time.time()
-    predicted_token, ground_truth_token = model.jit_sample_low_level_task(rng, observation, max_decoding_steps, PALIGEMMA_EOS_TOKEN, temperature)
-
+    predicted_token, kv_cache, mask, ar_mask = model.jit_sample_low_level_task(rng, observation, max_decoding_steps, PALIGEMMA_EOS_TOKEN, temperature)
     for i in range(predicted_token.shape[0]):
         print('======================')
         print(f"\033[31m[PRED]\033[0m " + tokenizer.detokenize(np.array(predicted_token[i], dtype=np.int32)), flush=True)
-        print(f"\033[32m[GT]\033[0m   " + tokenizer.detokenize(np.array(ground_truth_token[i], dtype=np.int32)), flush=True)
+        print(f"\033[31m[MASK]\033[0m " + tokenizer.detokenize(np.array(data['tokenized_prompt'], dtype=np.int32)), flush=True)
         print('======================')
     end_time = time.time()
     print(f"Time taken: {end_time - start_time} seconds")

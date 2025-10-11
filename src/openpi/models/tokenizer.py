@@ -48,6 +48,27 @@ class PaligemmaTokenizer:
 
         return np.asarray(tokens), np.asarray(mask)
 
+    def tokenize_high_level_prompt(self, high_prompt: str) -> tuple[np.ndarray, np.ndarray]:
+        cleaned_high_text = high_prompt.lower().strip().replace("_", " ").replace("\n", " ")
+        if cleaned_high_text and cleaned_high_text[-1] in string.punctuation:
+            cleaned_high_text = cleaned_high_text[:-1]
+        cleaned_high_text += '.'  # Add your custom symbol here
+        sub_prompt_1 = f"Task: {cleaned_high_text} Subtask: "
+        tokens_1 = self._tokenizer.encode(sub_prompt_1, add_bos=True)
+        if len(tokens_1) < self._max_len:
+            padding = [False] * (self._max_len - len(tokens_1))
+            tokens = tokens_1 + padding
+            mask = [True] * len(tokens_1) + padding
+        else:
+            if len(tokens_1) > self._max_len:
+                logging.warning(
+                    f"Token length ({len(tokens_1)}) exceeds max length ({self._max_len}), truncating. "
+                    "Consider increasing the `max_token_len` in your model config if this happens frequently."
+                )
+            tokens_1 = tokens_1[: self._max_len]
+            mask = [True] * self._max_len
+        return np.asarray(tokens), np.asarray(mask)
+
     def tokenize_high_low_prompt(self, high_prompt: str, low_prompt: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         cleaned_high_text = high_prompt.lower().strip().replace("_", " ").replace("\n", " ")
         cleaned_low_text = low_prompt.lower().strip().replace("_", " ").replace("\n", " ")
